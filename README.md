@@ -5,7 +5,6 @@
 ![Dashboard](./img/dashboard.png)
 ![Wokwi](./img/wokwi_sim.png)
 ![Controle](./img/control_page.png)
-![Logs Backend](./img/backend_logs.png)
 
 ## Sumário
 
@@ -215,8 +214,6 @@ Ele oscila vazão e injeta em `/api/data`.
 | DB desabilitado                    | Native module faltando           | Instalar better-sqlite3 (ou aceitar memória) |
 | Gráfico vazio mas valores aparecem | `history:init` não enviado ainda | Recarregar após gerar pontos                 |
 | MQTT sem mensagens                 | Broker divergente                | Unificar URL (backend e firmware)            |
-
-|
 
 ## Roadmap / Próximos Passos
 

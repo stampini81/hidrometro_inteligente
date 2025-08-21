@@ -1,0 +1,35 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# VS Code
+.vscode/
+
+# Node / Backend
+backend/node_modules/
+backend/npm-debug.log*
+backend/yarn-error.log
+backend/package-lock.json
+backend/.env
+
+# PlatformIO / Arduino
+.pio/
+.cpio/
+.piolibdeps/
+**/.pio/
+
+# Local duplicates/demo (keep out of git)
+wokwi/
+simulacao/
+hidrômetro inteligente/
+
+# Logs
+logs/
+*.log
+
+# Build artifacts
+build/
+dist/
+
+# Wokwi cache
+.wokwi/

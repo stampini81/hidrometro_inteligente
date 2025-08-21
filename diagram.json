@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "author": "Leandro",
+  "editor": "Wokwi",
+  "parts": [
+    { "type": "wokwi-esp32-devkit-v1", "id": "esp32", "top": -50, "left": -15, "attrs": {} },
+    { "type": "wokwi-lcd1602", "id": "lcd", "top": -85, "left": 150, "attrs": { "pins": "i2c", "i2cAddress": "0x27" } },
+    { "type": "wokwi-ds3231", "id": "rtc1", "top": 20, "left": 260, "attrs": {} },
+    { "type": "wokwi-pushbutton", "id": "flowBtn", "top": 62, "left": 172, "attrs": { "color": "blue", "bounce": "0" } }
+  ],
+  "connections": [
+  [ "esp32:GND", "lcd:GND", "black" ],
+  [ "esp32:3V3", "lcd:VCC", "red" ],
+  [ "esp32:21", "lcd:SDA", "green" ],
+  [ "esp32:22", "lcd:SCL", "purple" ],
+
+  [ "esp32:GND", "rtc1:GND", "black" ],
+  [ "esp32:3V3", "rtc1:VCC", "red" ],
+  [ "esp32:21", "rtc1:SDA", "green" ],
+  [ "esp32:22", "rtc1:SCL", "purple" ],
+
+  [ "esp32:GND", "flowBtn:1.l", "black" ],
+  [ "esp32:2", "flowBtn:2.l", "blue" ]
+  ],
+  "dependencies": {}
+}

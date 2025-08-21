@@ -1,0 +1,26 @@
+{
+  "name": "hidrometro-backend",
+  "version": "1.0.0",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+  "start": "node server.js",
+    "dev": "nodemon --ext js,json server.js",
+  "open:control": "wait-on http://localhost:%PORT% && start http://localhost:%PORT%/control.html",
+  "open:dashboard": "wait-on http://localhost:%PORT% && start http://localhost:%PORT%/dashboard/",
+  "start:all": "concurrently -k \"npm:dev\" \"npm:open:control\" \"npm:open:dashboard\"",
+  "sim:http": "node tools/simulate-http.js --port %PORT% --interval 1000"
+  },
+  "dependencies": {
+    "body-parser": "^1.20.2",
+    "express": "^4.19.2",
+    "mqtt": "^5.3.5",
+  "socket.io": "^4.7.5",
+  "better-sqlite3": "^9.6.0"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "nodemon": "^3.1.0",
+    "wait-on": "^7.2.0"
+  }
+}

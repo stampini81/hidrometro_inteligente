@@ -1,0 +1,11 @@
+node_modules
+.pio
+.git
+.vscode
+logs
+*.log
+build
+dist
+wokwi
+simulacao
+hidrômetro inteligente

@@ -1,0 +1,7 @@
+LiquidCrystal_I2C
+RTClib
+ArduinoJson
+EEPROM
+WiFi
+WebServer
+PubSubClient

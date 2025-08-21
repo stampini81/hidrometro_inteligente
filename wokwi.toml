@@ -1,0 +1,10 @@
+[wokwi]
+version = 1
+firmware = ".pio/build/esp32dev/firmware.bin"
+elf = ".pio/build/esp32dev/firmware.elf"
+rfc2217ServerPort = 4000
+
+# Encaminhar http://localhost:8180 -> porta 80 do ESP32 simulado
+[[net.forward]]
+from = "localhost:8180"
+to = "device:80"

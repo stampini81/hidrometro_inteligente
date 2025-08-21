@@ -9,8 +9,10 @@ Thumbs.db
 backend/node_modules/
 backend/npm-debug.log*
 backend/yarn-error.log
-backend/package-lock.json
+# keep lockfile tracked (remove ignore)
+# backend/package-lock.json
 backend/.env
+backend/data/*.db*
 
 # PlatformIO / Arduino
 .pio/

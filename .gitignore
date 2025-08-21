@@ -6,6 +6,9 @@ Thumbs.db
 .vscode/
 
 # Node / Backend
+# ignore node_modules anywhere (defense-in-depth)
+node_modules/
+**/node_modules/
 backend/node_modules/
 backend/npm-debug.log*
 backend/yarn-error.log

@@ -1,26 +1,134 @@
 {
   "version": 1,
-  "author": "Leandro",
+  "author": "Leandro da Silva Stampini",
   "editor": "Wokwi",
   "parts": [
-    { "type": "wokwi-esp32-devkit-v1", "id": "esp32", "top": -50, "left": -15, "attrs": {} },
-    { "type": "wokwi-lcd1602", "id": "lcd", "top": -85, "left": 150, "attrs": { "pins": "i2c", "i2cAddress": "0x27" } },
-    { "type": "wokwi-ds3231", "id": "rtc1", "top": 20, "left": 260, "attrs": {} },
-    { "type": "wokwi-pushbutton", "id": "flowBtn", "top": 62, "left": 172, "attrs": { "color": "blue", "bounce": "0" } }
+    {
+      "type": "wokwi-esp32-devkit-v1",
+      "id": "esp32",
+      "top": 0,
+      "left": -60,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-lcd1602",
+      "id": "lcd",
+      "top": -145,
+      "left": 130,
+      "attrs": {
+        "pins": "i2c",
+        "i2cAddress": "0x27"
+      }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "startBtn",
+      "top": 150,
+      "left": 170,
+      "attrs": {
+        "color": "green"
+      }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led",
+      "top": 120,
+      "left": 40,
+      "attrs": {
+        "color": "green"
+      }
+    },
+    {
+      "type": "wokwi-flow-meter",
+      "id": "flow",
+      "top": 20,
+      "left": 250,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-sim800l",
+      "id": "sim800l",
+      "top": -80,
+      "left": 250,
+      "attrs": {}
+    }
   ],
   "connections": [
-  [ "esp32:GND", "lcd:GND", "black" ],
-  [ "esp32:3V3", "lcd:VCC", "red" ],
-  [ "esp32:21", "lcd:SDA", "green" ],
-  [ "esp32:22", "lcd:SCL", "purple" ],
-
-  [ "esp32:GND", "rtc1:GND", "black" ],
-  [ "esp32:3V3", "rtc1:VCC", "red" ],
-  [ "esp32:21", "rtc1:SDA", "green" ],
-  [ "esp32:22", "rtc1:SCL", "purple" ],
-
-  [ "esp32:GND", "flowBtn:1.l", "black" ],
-  [ "esp32:2", "flowBtn:2.l", "blue" ]
+    [
+      "esp32:GND",
+      "lcd:GND",
+      "black"
+    ],
+    [
+      "esp32:3V3",
+      "lcd:VCC",
+      "red"
+    ],
+    [
+      "esp32:D21",
+      "lcd:SDA",
+      "green"
+    ],
+    [
+      "esp32:D22",
+      "lcd:SCL",
+      "purple"
+    ],
+    [
+      "esp32:GND",
+      "startBtn:1.l",
+      "black"
+    ],
+    [
+      "esp32:D4",
+      "startBtn:2.l",
+      "green"
+    ],
+    [
+      "esp32:D13",
+      "led:A",
+      "orange"
+    ],
+    [
+      "esp32:GND",
+      "led:C",
+      "black"
+    ],
+    [
+      "flow:GND",
+      "esp32:GND",
+      "black"
+    ],
+    [
+      "flow:VCC",
+      "esp32:VIN",
+      "red"
+    ],
+    [
+      "flow:SIG",
+      "esp32:D15",
+      "yellow"
+    ],
+    [
+      "sim800l:GND",
+      "esp32:GND",
+      "black"
+    ],
+    [
+      "sim800l:VCC",
+      "esp32:VIN",
+      "red"
+    ],
+    [
+      "sim800l:TX",
+      "esp32:D16",
+      "blue"
+    ],
+    [
+      "sim800l:RX",
+      "esp32:D17",
+      "cyan"
+    ]
   ],
   "dependencies": {}
 }

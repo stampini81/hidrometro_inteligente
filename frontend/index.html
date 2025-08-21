@@ -1,82 +1,132 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard Hidrômetro Inteligente</title>
-  <style>
-    body { font-family: Arial, sans-serif; background: #f4f6f9; padding: 20px; }
-    .card { background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 6px 18px rgba(0,0,0,.08); max-width: 500px; margin: 20px auto; }
-    .value { font-size: 28px; color: #1976d2; }
-  </style>
-</head>
-<body>
-  <div class="card">
-    <h1>Hidrômetro Inteligente</h1>
-    <div>
-      <strong>Total (L):</strong> <span id="total" class="value">0.0</span><br>
-  <strong>Vazão (L/min):</strong> <span id="flow" class="value">0.0</span>
-    </div>
-  </div>
-  <div class="card">
-    <h2>Histórico (últimas leituras)</h2>
-    <canvas id="chart" height="150"></canvas>
-  </div>
-  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <script>
-    function render(j){
-      if (!j) return;
-      const total = (j.totalLiters ?? j.total ?? 0);
-      const flow = (j.flowLmin ?? j.flowRate ?? 0);
-      document.getElementById('total').textContent = Number(total).toFixed(1);
-      document.getElementById('flow').textContent = Number(flow).toFixed(1);
-    }
-    let chart, chartData = [];
-    function renderChart(rows){
-      if (!rows || !rows.length) return;
-      const labels = rows.map(r => new Date(r.ts).toLocaleTimeString());
-      const flow = rows.map(r => Number(r.flowLmin||0));
-      if (!chart) {
-        chart = new Chart(document.getElementById('chart'), {
-          type: 'line',
-          data: { labels, datasets: [{ label: 'L/min', data: flow, borderColor: '#1976d2', tension: .2, fill: false }] },
-          options: { responsive: true, scales: { y: { beginAtZero: true } } }
-        });
-      } else {
-        chart.data.labels = labels; chart.data.datasets[0].data = flow; chart.update('none');
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard Hidrômetro Inteligente</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background: #f4f6f9;
+        padding: 20px;
       }
-      chartData = rows;
-    }
-    async function loadHistory(){
+      .card {
+        background: #fff;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+        max-width: 500px;
+        margin: 20px auto;
+      }
+      .value {
+        font-size: 28px;
+        color: #1976d2;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>Hidrômetro Inteligente</h1>
+      <div>
+        <strong>Total (L):</strong> <span id="total" class="value">0.0</span><br />
+        <strong>Vazão (L/min):</strong> <span id="flow" class="value">0.0</span>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Histórico (últimas leituras)</h2>
+      <canvas id="chart" height="150"></canvas>
+    </div>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script>
+      function render(j) {
+        if (!j) return;
+        const total = j.totalLiters ?? j.total ?? 0;
+        const flow = j.flowLmin ?? j.flowRate ?? 0;
+        document.getElementById('total').textContent = Number(total).toFixed(1);
+        document.getElementById('flow').textContent = Number(flow).toFixed(1);
+      }
+      let chart,
+        chartData = [];
+      function normalizeTs(ts) {
+        if (!ts) return Date.now();
+        return ts < 1e12 ? ts * 1000 : ts; // se vier em segundos, converte
+      }
+      function renderChart(rows) {
+        if (!rows || !rows.length) return; // só cria quando houver pelo menos 1
+        // Ordena por ts para evitar inversões se chegar fora de ordem
+        rows.sort((a, b) => (normalizeTs(a.ts) || 0) - (normalizeTs(b.ts) || 0));
+        const labels = rows.map((r) => new Date(normalizeTs(r.ts)).toLocaleTimeString());
+        const flow = rows.map((r) => Number(r.flowLmin || 0));
+        if (!chart) {
+          chart = new Chart(document.getElementById('chart'), {
+            type: 'line',
+            data: {
+              labels,
+              datasets: [
+                {
+                  label: 'L/min',
+                  data: flow,
+                  borderColor: '#1976d2',
+                  tension: 0.2,
+                  fill: false,
+                  pointRadius: 2,
+                },
+              ],
+            },
+            options: { responsive: true, animation: false, scales: { y: { beginAtZero: true } } },
+          });
+        } else {
+          chart.data.labels = labels;
+          chart.data.datasets[0].data = flow;
+          chart.update('none');
+        }
+        chartData = rows;
+      }
+      async function loadHistory() {
+        try {
+          const res = await fetch('/api/history?limit=200');
+          const j = await res.json();
+          renderChart(j.history || []);
+        } catch (e) {}
+      }
+      // Realtime via Socket.IO
       try {
-        const res = await fetch('/api/history?limit=200');
-        const j = await res.json();
-        renderChart(j.history || []);
-      } catch(e) {}
-    }
-    // Realtime via Socket.IO
-    try {
-      const socket = io(); // same-origin Socket.IO
-      socket.on('data', render);
-      socket.on('data', (d) => {
-        if (!chartData || !chartData.length) return; // evita antes de carregar histórico
-        const ts = Date.now();
-        chartData.push({ ts, flowLmin: d?.flowLmin||0 });
-        if (chartData.length > 200) chartData.shift();
-        renderChart(chartData);
-      });
-    } catch (e) { /* ignore */ }
-    // Fallback polling
-    async function refresh(){
-      try{
-        const res = await fetch('/api/current');
-        render(await res.json());
-      }catch(e){/* ignore */}
-    }
-    setInterval(refresh, 5000);
-    refresh();
-    loadHistory();
-  </script>
-</body>
+        const socket = io(); // same-origin Socket.IO
+        socket.on('history:init', (rows) => {
+          if (Array.isArray(rows) && rows.length) {
+            chartData = rows.map((r) => ({ ts: normalizeTs(r.ts), flowLmin: r.flowLmin }));
+            renderChart(chartData);
+          }
+        });
+        socket.on('data', render);
+        socket.on('data', (d) => {
+          let ts = d?.ts || Date.now();
+          ts = normalizeTs(ts);
+          if (!chartData.length) {
+            // Inicializa série com primeiro ponto ao vivo
+            chartData = [{ ts, flowLmin: d?.flowLmin || d?.flowRate || 0 }];
+          } else {
+            chartData.push({ ts, flowLmin: d?.flowLmin || d?.flowRate || 0 });
+            if (chartData.length > 200) chartData.shift();
+          }
+          renderChart(chartData);
+        });
+      } catch (e) {
+        /* ignore */
+      }
+      // Fallback polling
+      async function refresh() {
+        try {
+          const res = await fetch('/api/current');
+          render(await res.json());
+        } catch (e) {
+          /* ignore */
+        }
+      }
+      setInterval(refresh, 5000);
+      refresh();
+      loadHistory();
+    </script>
+  </body>
 </html>

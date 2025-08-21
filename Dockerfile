@@ -2,7 +2,12 @@
 FROM node:20-alpine AS deps
 WORKDIR /app
 COPY backend/package.json ./backend/package.json
-RUN cd backend && npm install --omit=dev
+# Install build dependencies briefly to compile native modules (better-sqlite3)
+RUN apk add --no-cache --virtual .build-deps python3 make g++ \
+	&& cd backend \
+	&& npm install --omit=dev \
+	&& cd / \
+	&& apk del .build-deps
 
 FROM node:20-alpine AS runner
 WORKDIR /app

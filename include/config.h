@@ -9,6 +9,10 @@
 #define FLOW_SENSOR_PIN 2
 #define CALIBRATION_FACTOR 7.5
 
+// Botão Start para ligar/desligar simulação e LED
+#define START_BUTTON_PIN 4
+#define DEFAULT_SIM_FLOW 8.0f
+
 // LCD I2C
 #define LCD_ADDRESS 0x27
 #define LCD_COLS 16

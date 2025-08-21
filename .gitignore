@@ -38,3 +38,4 @@ dist/
 
 # Wokwi cache
 .wokwi/
+.env

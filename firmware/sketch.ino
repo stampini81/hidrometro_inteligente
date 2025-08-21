@@ -12,11 +12,13 @@ void IRAM_ATTR flowPulseCounter();
 
 LiquidCrystal_I2C lcd(LCD_ADDRESS, LCD_COLS, LCD_ROWS);
 RTC_DS3231 rtc;
+bool rtcOk = false; // indica se RTC respondeu
 WebServer server(80);
 WiFiClient espClient;
 PubSubClient mqttClient(espClient);
 
 const int LED_STATUS_PIN = 13;
+const int START_BTN_PIN = START_BUTTON_PIN; // IO4 (config.h)
 volatile int flowPulseCount = 0;
 float totalLiters = 0.0;
 float currentFlowRate = 0.0;
@@ -82,13 +84,18 @@ const char index_html[] PROGMEM = R"rawliteral(
 )rawliteral";
 
 unsigned long getUnixTime() {
-  return rtc.now().unixtime();
+  if (rtcOk) {
+    return rtc.now().unixtime();
+  }
+  // Fallback: usa millis/1000 como "timestamp" monotônico (não real UTC)
+  return millis() / 1000; 
 }
 
 void setup() {
   Serial.begin(115200);
   EEPROM.begin(EEPROM_SIZE);
   pinMode(FLOW_SENSOR_PIN, INPUT_PULLUP);
+  pinMode(START_BTN_PIN, INPUT_PULLUP);
   pinMode(LED_STATUS_PIN, OUTPUT);
   attachInterrupt(digitalPinToInterrupt(FLOW_SENSOR_PIN), flowPulseCounter, FALLING);
   lcd.init();
@@ -99,10 +106,12 @@ void setup() {
   lcd.print("Inicializando...");
   delay(1000);
   if (!rtc.begin()) {
-    Serial.println("RTC nao encontrado!");
+    Serial.println("RTC nao encontrado! Prosseguindo sem RTC.");
     lcd.setCursor(0, 1);
-    lcd.print("Erro RTC!       ");
-    while (1);
+    lcd.print("Sem RTC...      ");
+    rtcOk = false;
+  } else {
+    rtcOk = true;
   }
   setupWiFi();
   setupWebServer();
@@ -115,6 +124,17 @@ void setup() {
 }
 
 void loop() {
+  // Toggle sim/LED ao pressionar botão start (com debounce simples)
+  static uint32_t lastBtnMs = 0; static int lastBtn = HIGH;
+  int b = digitalRead(START_BTN_PIN);
+  if (b != lastBtn && (millis() - lastBtnMs) > 50) {
+    lastBtnMs = millis(); lastBtn = b;
+    if (b == LOW) { // pressionado
+      simEnabled = !simEnabled;
+      if (simEnabled && simFlowTarget <= 0.0f) simFlowTarget = DEFAULT_SIM_FLOW;
+      digitalWrite(LED_STATUS_PIN, simEnabled ? HIGH : LOW);
+    }
+  }
   server.handleClient();
   if (!mqttClient.connected()) {
     reconnectMQTT();
@@ -140,9 +160,11 @@ void loop() {
     flowPulseCount = 0;
     oldTime = millis();
     attachInterrupt(digitalPinToInterrupt(FLOW_SENSOR_PIN), flowPulseCounter, FALLING);
-    DateTime now = DateTime(getUnixTime());
-    if (now.minute() == 0 && now.second() < 2) {
-      saveHourlyData();
+    if (rtcOk) {
+      DateTime now = DateTime(getUnixTime());
+      if (now.minute() == 0 && now.second() < 2) {
+        saveHourlyData();
+      }
     }
     updateDisplay();
   publishCurrentDataMQTT();
@@ -152,7 +174,10 @@ void loop() {
       lastSaveTime = millis();
     }
   }
-  digitalWrite(LED_STATUS_PIN, (millis() / 500) % 2);
+  // Se não estiver simulando, piscar LED; se simulando, LED segue HIGH
+  if (!simEnabled) {
+    digitalWrite(LED_STATUS_PIN, (millis() / 500) % 2);
+  }
 }
 
 void IRAM_ATTR flowPulseCounter() {

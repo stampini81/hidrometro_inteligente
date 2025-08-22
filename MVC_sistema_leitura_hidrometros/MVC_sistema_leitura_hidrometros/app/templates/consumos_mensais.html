@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}Consumos Mensais - Sistema de Leitura de Hidrômetros{% endblock %}
+
+{% block content %}
+    <h1>Gerenciar Consumos Mensais</h1>
+
+    <a href="{{ url_for('adicionar_consumo_mensal') }}" class="btn btn-add">
+        <i class="fas fa-plus-circle"></i> Adicionar Novo Consumo Mensal
+    </a>
+
+    <ul class="data-list">
+        {% if consumos %}
+            {% for consumo in consumos %}
+                <li class="data-item">
+                    <div class="item-details">
+                        <strong>Cliente: {{ consumo.cliente.nome if consumo.cliente else 'N/A' }}</strong> (ID Cliente: {{ consumo.cliente_id }})<br>
+                        Mês de Referência: {{ consumo.mes_referencia.strftime('%m/%Y') }}<br>
+                        Litros Consumidos: {{ "%.2f" | format(consumo.litros_consumidos) }} Litros<br>
+                        {% if consumo.valor_estimado %}Valor Estimado: R$ {{ "%.2f" | format(consumo.valor_estimado) }}{% endif %}<br>
+                        {% if consumo.tarifa_aplicada %}Tarifa Aplicada: {{ consumo.tarifa_aplicada.nome_tarifa }}{% endif %}
+                    </div>
+                    <div class="item-actions">
+                        <a href="{{ url_for('editar_consumo_mensal', consumo_id=consumo.id_consumo) }}" class="btn btn-edit">
+                            <i class="fas fa-edit"></i> Editar
+                        </a>
+                        <form action="{{ url_for('excluir_consumo_mensal', consumo_id=consumo.id_consumo) }}" method="POST" style="display:inline;">
+                            <button type="submit" class="btn btn-delete" onclick="return confirm('Tem certeza que deseja excluir este registro de consumo mensal?');">
+                                <i class="fas fa-trash-alt"></i> Excluir
+                            </button>
+                        </form>
+                    </div>
+                </li>
+            {% endfor %}
+        {% else %}
+            <p>Nenhum registro de consumo mensal cadastrado ainda.</p>
+        {% endif %}
+    </ul>
+{% endblock %}

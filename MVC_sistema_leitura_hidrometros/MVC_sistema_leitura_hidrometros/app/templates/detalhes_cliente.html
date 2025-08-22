@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block title %}Detalhes do Cliente - {{ cliente.nome }}{% endblock %}
+
+{% block content %}
+    <h1>Detalhes do Cliente: {{ cliente.nome }}</h1>
+
+    <div class="card">
+        <h3>Informações Básicas</h3>
+        <p><strong>ID:</strong> {{ cliente.id_cliente }}</p>
+        <p><strong>Nome:</strong> {{ cliente.nome }}</p>
+        <p><strong>CPF/CNPJ:</strong> {{ cliente.cpf_cnpj or 'Não informado' }}</p>
+        <p><strong>Email:</strong> {{ cliente.email or 'Não informado' }}</p>
+        <p><strong>Data de Cadastro:</strong> {{ cliente.data_cadastro.strftime('%d/%m/%Y %H:%M') }}</p>
+        <a href="{{ url_for('editar_cliente', cliente_id=cliente.id_cliente) }}" class="btn btn-edit">
+            <i class="fas fa-edit"></i> Editar Cliente
+        </a>
+    </div>
+
+    <div class="card mt-4">
+        <h3>Endereços</h3>
+        <a href="{{ url_for('adicionar_endereco', cliente_id=cliente.id_cliente) }}" class="btn btn-add mb-3">
+            <i class="fas fa-plus-circle"></i> Adicionar Endereço
+        </a>
+        <ul class="data-list">
+            {% if cliente.enderecos %}
+                {% for endereco in cliente.enderecos %}
+                    <li class="data-item">
+                        <div class="item-details">
+                            <strong>{{ endereco.logradouro }}, {{ endereco.numero }}</strong> ({{ endereco.tipo_endereco }})<br>
+                            {% if endereco.complemento %}Complemento: {{ endereco.complemento }}<br>{% endif %}
+                            Bairro: {{ endereco.bairro or 'N/A' }}<br>
+                            {{ endereco.cidade }} - {{ endereco.estado }} / CEP: {{ endereco.cep or 'N/A' }}
+                        </div>
+                        <div class="item-actions">
+                            <form action="{{ url_for('excluir_endereco', cliente_id=cliente.id_cliente, endereco_id=endereco.id_endereco) }}" method="POST" style="display:inline;">
+                                <button type="submit" class="btn btn-delete" onclick="return confirm('Tem certeza que deseja excluir este endereço?');">
+                                    <i class="fas fa-trash-alt"></i> Excluir
+                                </button>
+                            </form>
+                        </div>
+                    </li>
+                {% endfor %}
+            {% else %}
+                <p>Nenhum endereço cadastrado para este cliente.</p>
+            {% endif %}
+        </ul>
+    </div>
+
+    <div class="card mt-4">
+        <h3>Telefones</h3>
+        <a href="{{ url_for('adicionar_telefone', cliente_id=cliente.id_cliente) }}" class="btn btn-add mb-3">
+            <i class="fas fa-plus-circle"></i> Adicionar Telefone
+        </a>
+        <ul class="data-list">
+            {% if cliente.telefones %}
+                {% for telefone in cliente.telefones %}
+                    <li class="data-item">
+                        <div class="item-details">
+                            <strong>({{ telefone.ddd or 'N/A' }}) {{ telefone.numero }}</strong> ({{ telefone.tipo_telefone }})
+                        </div>
+                        <div class="item-actions">
+                            <form action="{{ url_for('excluir_telefone', cliente_id=cliente.id_cliente, telefone_id=telefone.id_telefone) }}" method="POST" style="display:inline;">
+                                <button type="submit" class="btn btn-delete" onclick="return confirm('Tem certeza que deseja excluir este telefone?');">
+                                    <i class="fas fa-trash-alt"></i> Excluir
+                                </button>
+                            </form>
+                        </div>
+                    </li>
+                {% endfor %}
+            {% else %}
+                <p>Nenhum telefone cadastrado para este cliente.</p>
+            {% endif %}
+        </ul>
+    </div>
+
+    <a href="{{ url_for('listar_clientes') }}" class="btn btn-secondary mt-4">
+        <i class="fas fa-arrow-left"></i> Voltar para Clientes
+    </a>
+{% endblock %}

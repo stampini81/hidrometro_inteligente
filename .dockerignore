@@ -9,3 +9,14 @@ dist
 wokwi
 simulacao
 hidrômetro inteligente
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+instance
+*.db
+*.sqlite*
+.env
+.env.*
+!.env.example
+img/raw

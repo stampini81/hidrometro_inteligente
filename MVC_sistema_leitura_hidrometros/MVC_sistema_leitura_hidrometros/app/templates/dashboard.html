@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="card">
+  <h1>Hidrômetro Inteligente</h1>
+  <div>
+    <strong>Total (L):</strong> <span id="total" class="value">0.0</span><br />
+    <strong>Vazão (L/min):</strong> <span id="flow" class="value">0.0</span>
+  </div>
+</div>
+<div class="card">
+  <h2>Histórico (últimas leituras)</h2>
+  <canvas id="chart" height="150"></canvas>
+</div>
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+  function render(j) {
+    if (!j) return;
+    const total = j.totalLiters ?? j.total ?? 0;
+    const flow = j.flowLmin ?? j.flowRate ?? 0;
+    document.getElementById('total').textContent = Number(total).toFixed(1);
+    document.getElementById('flow').textContent = Number(flow).toFixed(1);
+  }
+  let chart, chartData = [];
+  function normalizeTs(ts){ if(!ts) return Date.now(); return ts < 1e12 ? ts*1000 : ts; }
+  function renderChart(rows){
+    if(!rows || !rows.length) return;
+    rows.sort((a,b)=> (normalizeTs(a.ts)||0) - (normalizeTs(b.ts)||0));
+    const labels = rows.map(r=> new Date(normalizeTs(r.ts)).toLocaleTimeString());
+    const flow = rows.map(r=> Number(r.flowLmin||0));
+    if(!chart){
+      chart = new Chart(document.getElementById('chart'), {
+        type:'line',
+        data:{ labels, datasets:[{ label:'L/min', data:flow, borderColor:'#1976d2', tension:0.2, fill:false, pointRadius:2 }]},
+        options:{ responsive:true, animation:false, scales:{ y:{ beginAtZero:true }}}
+      });
+    } else {
+      chart.data.labels = labels;
+      chart.data.datasets[0].data = flow;
+      chart.update('none');
+    }
+    chartData = rows;
+  }
+  async function loadHistory(){
+    const res = await fetch('/api/history?limit=200');
+    const j = await res.json();
+    renderChart(j.history || []);
+  }
+  const socket = io();
+  socket.on('history:init', rows => { if(Array.isArray(rows)&&rows.length){ chartData = rows.map(r=>({ts:normalizeTs(r.ts), flowLmin:r.flowLmin})); renderChart(chartData);} });
+  socket.on('data', d => { render(d); let ts = normalizeTs(d?.ts||Date.now()); if(!chartData.length){ chartData=[{ts, flowLmin:d?.flowLmin||d?.flowRate||0}]; } else { chartData.push({ts, flowLmin:d?.flowLmin||d?.flowRate||0}); if(chartData.length>200) chartData.shift(); } renderChart(chartData); });
+  setInterval(async ()=>{ try{ const r=await fetch('/api/current'); render(await r.json()); }catch(e){} },5000);
+  loadHistory();
+</script>
+{% endblock %}

@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block title %}Leituras do Dispositivo - Sistema de Leitura de Hidrômetros{% endblock %}
+
+{% block content %}
+    <h1>Leituras para Dispositivo: {{ dispositivo.modelo }} (Nº Série: {{ dispositivo.numero_serie }})</h1>
+
+    <a href="{{ url_for('registrar_leitura', dispositivo_id=dispositivo.id_dispositivo) }}" class="btn btn-add">
+        <i class="fas fa-plus-circle"></i> Registrar Nova Leitura
+    </a>
+    <a href="{{ url_for('listar_dispositivos') }}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Voltar para Dispositivos
+    </a>
+
+    <ul class="data-list">
+        {% if leituras %}
+            {% for leitura in leituras %}
+                <li class="data-item">
+                    <div class="item-details">
+                        <strong>Data/Hora: {{ leitura.data_hora.strftime('%d/%m/%Y %H:%M:%S') }}</strong><br>
+                        Consumo: {{ "%.2f" | format(leitura.consumo_litros) }} Litros<br>
+                        {% if leitura.bateria %}Bateria: {{ "%.2f" | format(leitura.bateria) }}%<br>{% endif %}
+                        {% if leitura.pressao_bar %}Pressão: {{ "%.2f" | format(leitura.pressao_bar) }} Bar<br>{% endif %}
+                        Vazamento Detectado: {% if leitura.vazamento_detectado %}<span class="status-defeito">Sim</span>{% else %}Não{% endif %}
+                    </div>
+                </li>
+            {% endfor %}
+        {% else %}
+            <p>Nenhuma leitura registrada para este dispositivo ainda.</p>
+        {% endif %}
+    </ul>
+{% endblock %}

@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block title %}Adicionar Tipo de Dispositivo - Sistema de Leitura de Hidrômetros{% endblock %}
+
+{% block content %}
+    <h1>Adicionar Novo Tipo de Dispositivo</h1>
+
+    <form action="{{ url_for('adicionar_tipo_dispositivo') }}" method="POST" class="form-add-edit">
+        <div class="form-group">
+            <label for="nome_tipo">Nome do Tipo:</label>
+            <input type="text" id="nome_tipo" name="nome_tipo" required>
+        </div>
+        <div class="form-group">
+            <label for="descricao">Descrição:</label>
+            <textarea id="descricao" name="descricao" rows="4"></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Salvar Tipo</button>
+        <a href="{{ url_for('listar_tipos_dispositivo') }}" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Voltar</a>
+    </form>
+{% endblock %}

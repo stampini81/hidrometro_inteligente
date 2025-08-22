@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}Tarifas - Sistema de Leitura de Hidrômetros{% endblock %}
+
+{% block content %}
+    <h1>Gerenciar Tarifas</h1>
+
+    <a href="{{ url_for('adicionar_tarifa') }}" class="btn btn-add">
+        <i class="fas fa-plus-circle"></i> Adicionar Nova Tarifa
+    </a>
+
+    <ul class="data-list">
+        {% if tarifas %}
+            {% for tarifa in tarifas %}
+                <li class="data-item">
+                    <div class="item-details">
+                        <strong>{{ tarifa.nome_tarifa }}</strong> (ID: {{ tarifa.id_tarifa }})<br>
+                        Valor por m³: R$ {{ "%.2f" | format(tarifa.valor_m3) }}<br>
+                        Início: {{ tarifa.data_inicio.strftime('%d/%m/%Y') }}
+                        {% if tarifa.data_fim %}<br>Fim: {{ tarifa.data_fim.strftime('%d/%m/%Y') }}{% endif %}<br>
+                        Status: <span class="status-{{ 'ativo' if tarifa.ativa else 'inativo' }}">{{ 'Ativa' if tarifa.ativa else 'Inativa' }}</span>
+                    </div>
+                    <div class="item-actions">
+                        <a href="{{ url_for('editar_tarifa', tarifa_id=tarifa.id_tarifa) }}" class="btn btn-edit">
+                            <i class="fas fa-edit"></i> Editar
+                        </a>
+                        <form action="{{ url_for('excluir_tarifa', tarifa_id=tarifa.id_tarifa) }}" method="POST" style="display:inline;">
+                            <button type="submit" class="btn btn-delete" onclick="return confirm('Tem certeza que deseja excluir esta tarifa?');">
+                                <i class="fas fa-trash-alt"></i> Excluir
+                            </button>
+                        </form>
+                    </div>
+                </li>
+            {% endfor %}
+        {% else %}
+            <p>Nenhuma tarifa cadastrada ainda.</p>
+        {% endif %}
+    </ul>
+{% endblock %}

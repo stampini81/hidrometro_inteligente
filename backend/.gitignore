@@ -1,7 +1,0 @@
-# Backend-specific ignores
-node_modules/
-npm-debug.log*
-yarn-error.log
-.env
-# SQLite files
-/data/*.db*

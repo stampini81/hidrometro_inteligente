@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block title %}Tipos de Dispositivo - Sistema de Leitura de Hidrômetros{% endblock %}
+
+{% block content %}
+    <h1>Gerenciar Tipos de Dispositivo</h1>
+
+    <a href="{{ url_for('adicionar_tipo_dispositivo') }}" class="btn btn-add">
+        <i class="fas fa-plus-circle"></i> Adicionar Novo Tipo
+    </a>
+    <a href="{{ url_for('listar_dispositivos') }}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Voltar para Dispositivos
+    </a>
+
+    <ul class="data-list">
+        {% if tipos %}
+            {% for tipo in tipos %}
+                <li class="data-item">
+                    <div class="item-details">
+                        <strong>{{ tipo.nome_tipo }}</strong> (ID: {{ tipo.id_tipo_dispositivo }})<br>
+                        {% if tipo.descricao %}Descrição: {{ tipo.descricao }}{% endif %}
+                    </div>
+                    <div class="item-actions">
+                        </div>
+                </li>
+            {% endfor %}
+        {% else %}
+            <p>Nenhum tipo de dispositivo cadastrado ainda.</p>
+        {% endif %}
+    </ul>
+{% endblock %}

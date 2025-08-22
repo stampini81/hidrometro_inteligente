@@ -5,23 +5,50 @@ Thumbs.db
 # VS Code
 .vscode/
 
-# Node / Backend
-# ignore node_modules anywhere (defense-in-depth)
+# Node (legacy precaution only)
 node_modules/
 **/node_modules/
+
+# Backend legacy (já removido)
+backend/
 backend/node_modules/
 backend/npm-debug.log*
 backend/yarn-error.log
-# keep lockfile tracked (remove ignore)
-# backend/package-lock.json
 backend/.env
 backend/data/*.db*
+
+# Python / Flask
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+
+# Ambiente
+.env
+.env.*
+!.env.example
+
+# Databases / persistência local
+instance/
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+*.db-shm
+*.db-wal
+
+# Alembic migration cache (mantém versões)
+# migrations/ (NÃO ignorar se quiser versionar as migrações)
 
 # PlatformIO / Arduino
 .pio/
 .cpio/
 .piolibdeps/
 **/.pio/
+*.elf
+*.bin
 
 # Local duplicates/demo (keep out of git)
 wokwi/
@@ -38,4 +65,6 @@ dist/
 
 # Wokwi cache
 .wokwi/
-.env
+
+# Imagens grandes opcionais (descomente para ignorar originais pesadas)
+# img/raw/

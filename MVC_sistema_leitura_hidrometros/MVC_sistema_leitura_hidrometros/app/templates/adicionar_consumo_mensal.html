@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}Adicionar Consumo Mensal - Sistema de Leitura de Hidrômetros{% endblock %}
+
+{% block content %}
+    <h1>Adicionar Novo Consumo Mensal</h1>
+
+    <form action="{{ url_for('adicionar_consumo_mensal') }}" method="POST" class="form-add-edit">
+        <div class="form-group">
+            <label for="cliente_id">Cliente:</label>
+            <select id="cliente_id" name="cliente_id" required>
+                <option value="">Selecione um Cliente</option>
+                {% for cliente in clientes %}
+                    <option value="{{ cliente.id_cliente }}">{{ cliente.nome }} (ID: {{ cliente.id_cliente }})</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="mes_referencia">Mês de Referência:</label>
+            <input type="date" id="mes_referencia" name="mes_referencia" required>
+        </div>
+        <div class="form-group">
+            <label for="litros_consumidos">Litros Consumidos:</label>
+            <input type="number" step="0.01" id="litros_consumidos" name="litros_consumidos" required>
+        </div>
+        <div class="form-group">
+            <label for="tarifa_aplicada_id">Tarifa Aplicada (Opcional para Cálculo):</label>
+            <select id="tarifa_aplicada_id" name="tarifa_aplicada_id">
+                <option value="">Selecione uma Tarifa</option>
+                {% for tarifa in tarifas %}
+                    <option value="{{ tarifa.id_tarifa }}">{{ tarifa.nome_tarifa }} (R$ {{ "%.2f" | format(tarifa.valor_m3) }}/m³)</option>
+                {% endfor %}
+            </select>
+        </div>
+        <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Salvar Consumo Mensal</button>
+        <a href="{{ url_for('listar_consumos_mensais') }}" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Voltar</a>
+    </form>
+{% endblock %}

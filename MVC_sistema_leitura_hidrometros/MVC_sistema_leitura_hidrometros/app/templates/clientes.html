@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}Clientes - Sistema de Leitura de Hidrômetros{% endblock %}
+
+{% block content %}
+    <h1>Gerenciar Clientes</h1>
+
+    <a href="{{ url_for('adicionar_cliente') }}" class="btn btn-add">
+        <i class="fas fa-plus-circle"></i> Adicionar Novo Cliente
+    </a>
+
+    <ul class="data-list">
+        {% if clientes %}
+            {% for cliente in clientes %}
+                <li class="data-item">
+                    <div class="item-details">
+                        <strong>{{ cliente.nome }}</strong> (ID: {{ cliente.id_cliente }})<br>
+                        {% if cliente.cpf_cnpj %}CPF/CNPJ: {{ cliente.cpf_cnpj }}<br>{% endif %}
+                        {% if cliente.email %}Email: {{ cliente.email }}<br>{% endif %}
+                        Cadastrado em: {{ cliente.data_cadastro.strftime('%d/%m/%Y %H:%M') }}
+                    </div>
+                    <div class="item-actions">
+                        <a href="{{ url_for('detalhes_cliente', cliente_id=cliente.id_cliente) }}" class="btn btn-info">
+                            <i class="fas fa-info-circle"></i> Detalhes
+                        </a>
+                        <a href="{{ url_for('editar_cliente', cliente_id=cliente.id_cliente) }}" class="btn btn-edit">
+                            <i class="fas fa-edit"></i> Editar
+                        </a>
+                        <form action="{{ url_for('excluir_cliente', cliente_id=cliente.id_cliente) }}" method="POST" style="display:inline;">
+                            <button type="submit" class="btn btn-delete" onclick="return confirm('Tem certeza que deseja excluir este cliente? Isso também excluirá todos os endereços, telefones, dispositivos e consumos associados.');">
+                                <i class="fas fa-trash-alt"></i> Excluir
+                            </button>
+                        </form>
+                    </div>
+                </li>
+            {% endfor %}
+        {% else %}
+            <p>Nenhum cliente cadastrado ainda.</p>
+        {% endif %}
+    </ul>
+{% endblock %}

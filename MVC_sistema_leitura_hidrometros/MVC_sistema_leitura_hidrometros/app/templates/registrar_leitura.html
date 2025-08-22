@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block title %}Registrar Leitura - Sistema de Leitura de Hidrômetros{% endblock %}
+
+{% block content %}
+    <h1>Registrar Leitura para Dispositivo: {{ dispositivo.modelo }} (Nº Série: {{ dispositivo.numero_serie }})</h1>
+
+    <form action="{{ url_for('registrar_leitura', dispositivo_id=dispositivo.id_dispositivo) }}" method="POST" class="form-add-edit">
+        <div class="form-group">
+            <label for="consumo_litros">Consumo (Litros):</label>
+            <input type="number" step="0.01" id="consumo_litros" name="consumo_litros" required>
+        </div>
+        <div class="form-group">
+            <label for="bateria">Nível da Bateria (%):</label>
+            <input type="number" step="0.01" id="bateria" name="bateria" min="0" max="100">
+        </div>
+        <div class="form-group">
+            <label for="pressao_bar">Pressão (Bar):</label>
+            <input type="number" step="0.01" id="pressao_bar" name="pressao_bar">
+        </div>
+        <div class="form-group checkbox-group">
+            <input type="checkbox" id="vazamento_detectado" name="vazamento_detectado">
+            <label for="vazamento_detectado">Vazamento Detectado?</label>
+        </div>
+        <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Registrar Leitura</button>
+        <a href="{{ url_for('listar_leituras_dispositivo', dispositivo_id=dispositivo.id_dispositivo) }}" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Voltar para Leituras</a>
+        <a href="{{ url_for('listar_dispositivos') }}" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Voltar para Dispositivos</a>
+    </form>
+{% endblock %}

@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}Dispositivos - Sistema de Leitura de Hidrômetros{% endblock %}
+
+{% block content %}
+    <h1>Gerenciar Dispositivos</h1>
+
+    <a href="{{ url_for('adicionar_dispositivo') }}" class="btn btn-add">
+        <i class="fas fa-plus-circle"></i> Adicionar Novo Dispositivo
+    </a>
+    <a href="{{ url_for('adicionar_tipo_dispositivo') }}" class="btn btn-secondary">
+        <i class="fas fa-tags"></i> Gerenciar Tipos de Dispositivo
+    </a>
+
+    <ul class="data-list">
+        {% if dispositivos %}
+            {% for dispositivo in dispositivos %}
+                <li class="data-item">
+                    <div class="item-details">
+                        <strong>Modelo: {{ dispositivo.modelo }}</strong> (Nº Série: {{ dispositivo.numero_serie }})<br>
+                        Cliente: {{ dispositivo.cliente.nome if dispositivo.cliente else 'N/A' }}<br>
+                        Tipo: {{ dispositivo.tipo_dispositivo.nome_tipo if dispositivo.tipo_dispositivo else 'Não Definido' }}<br>
+                        Status: <span class="status-{{ dispositivo.status | lower }}">{{ dispositivo.status }}</span><br>
+                        {% if dispositivo.data_instalacao %}Data Instalação: {{ dispositivo.data_instalacao.strftime('%d/%m/%Y') }}{% endif %}
+                    </div>
+                    <div class="item-actions">
+                        <a href="{{ url_for('registrar_leitura', dispositivo_id=dispositivo.id_dispositivo) }}" class="btn btn-info">
+                            <i class="fas fa-plus"></i> Registrar Leitura
+                        </a>
+                        <a href="{{ url_for('listar_leituras_dispositivo', dispositivo_id=dispositivo.id_dispositivo) }}" class="btn btn-info">
+                            <i class="fas fa-list"></i> Ver Leituras
+                        </a>
+                        <a href="{{ url_for('editar_dispositivo', dispositivo_id=dispositivo.id_dispositivo) }}" class="btn btn-edit">
+                            <i class="fas fa-edit"></i> Editar
+                        </a>
+                        <form action="{{ url_for('excluir_dispositivo', dispositivo_id=dispositivo.id_dispositivo) }}" method="POST" style="display:inline;">
+                            <button type="submit" class="btn btn-delete" onclick="return confirm('Tem certeza que deseja excluir este dispositivo? Isso também excluirá todas as leituras e histórico de status associados.');">
+                                <i class="fas fa-trash-alt"></i> Excluir
+                            </button>
+                        </form>
+                    </div>
+                </li>
+            {% endfor %}
+        {% else %}
+            <p>Nenhum dispositivo cadastrado ainda.</p>
+        {% endif %}
+    </ul>
+{% endblock %}

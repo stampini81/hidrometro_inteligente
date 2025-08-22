@@ -1,6 +1,6 @@
 # Hidrômetro Inteligente
 
-> Monitoramento e simulação de consumo de água com ESP32 (firmware Arduino), MQTT, backend Node.js + Socket.IO e dashboard web em tempo real.
+> Sistema unificado em Flask (antes Node + Flask separados). MQTT -> Flask (paho-mqtt) -> Socket.IO (Flask-SocketIO) -> Dashboard.
 
 ![Dashboard](./img/dashboard.png)
 ![Wokwi](./img/wokwi_sim.png)
@@ -10,6 +10,12 @@
 
 - [Visão Geral](#visão-geral)
 - [Arquitetura](#arquitetura)
+- [Alterações Recentes](#alterações-recentes)
+- [Migrações](#migrações)
+- [Login / Token](#login--token)
+- [Envio manual de leitura](#envio-manual-de-leitura)
+- [Comando](#comando)
+- [Remoção do Backend Node](#remoção-do-backend-node)
 - [Funcionalidades](#funcionalidades)
 - [Tecnologias](#tecnologias)
 - [Estrutura do Repositório](#estrutura-do-repositório)
@@ -38,9 +44,67 @@ Este projeto implementa um "hidrômetro inteligente" experimental que:
 ## Arquitetura
 
 ```
-[ESP32 / Simulação] --MQTT--> [Broker Mosquitto / HiveMQ] --MQTT--> [Backend Node]
-                                                     |--> [Socket.IO / REST API] --> [Dashboard Web]
+[ESP32 / Wokwi] --MQTT--> [Broker] --MQTT--> [Flask + Socket.IO + DB]
+                                           |--> Dashboard / Controle
+                                           |--> API REST / Auth JWT
 ```
+
+## Alterações Recentes
+
+- Backend Node removido (código mantido apenas para referência, pode excluir pasta `backend/`).
+- Adicionadas colunas `total_liters` e `flow_lmin` em `Leitura`.
+- Histórico em memória + persistência em DB.
+- Autenticação JWT simples (`/api/login`). Use header `Authorization: Bearer <token>`.
+- Endpoints mutadores (/api/data, /api/cmd) agora exigem token.
+- Migrações habilitadas (Flask-Migrate).
+
+## Migrações
+
+```powershell
+# Inicializar (primeira vez)
+flask --app MVC_sistema_leitura_hidrometros/MVC_sistema_leitura_hidrometros/app db init
+# Gerar migration após mudança de modelo
+flask --app MVC_sistema_leitura_hidrometros/MVC_sistema_leitura_hidrometros/app db migrate -m "add total/flow"
+# Aplicar
+flask --app MVC_sistema_leitura_hidrometros/MVC_sistema_leitura_hidrometros/app db upgrade
+```
+
+## Login / Token
+
+```powershell
+curl -X POST http://localhost:5000/api/login -H "Content-Type: application/json" -d '{"username":"admin","password":"admin"}'
+```
+
+Resposta:
+
+```json
+{"token":"<JWT>"}
+```
+
+Use em chamadas protegidas:
+
+```
+Authorization: Bearer <JWT>
+```
+
+## Envio manual de leitura
+
+```powershell
+$token = (curl -s -X POST http://localhost:5000/api/login -H "Content-Type: application/json" -d '{"username":"admin","password":"admin"}' | ConvertFrom-Json).token
+curl -X POST http://localhost:5000/api/data -H "Authorization: Bearer $token" -H "Content-Type: application/json" -d '{"totalLiters":123.4,"flowLmin":6.7,"numeroSerie":"ABC123"}'
+```
+
+## Comando
+
+```powershell
+curl -X POST http://localhost:5000/api/cmd -H "Authorization: Bearer $token" -H "Content-Type: application/json" -d '{"action":"reset"}'
+```
+
+## Remoção do Backend Node
+
+- Verifique que dashboard em `/dashboard` funciona.
+- Copie qualquer lógica custom se tiver modificado `server.js`.
+- Exclua pasta `backend/` quando não for mais necessária.
 
 ## Funcionalidades
 
@@ -53,7 +117,7 @@ Este projeto implementa um "hidrômetro inteligente" experimental que:
 ## Tecnologias
 
 - Firmware: Arduino framework (ESP32), PubSubClient, LiquidCrystal_I2C, RTClib.
-- Backend: Node.js, Express, Socket.IO, MQTT.js.
+- Backend: Flask, Flask-SocketIO, Flask-Migrate, paho-mqtt.
 - Frontend: HTML/CSS/JS, Chart.js, Socket.IO client.
 - Contêineres: Docker, docker-compose (backend + Mosquitto).
 - Simulação: Wokwi + script HTTP.
@@ -61,7 +125,7 @@ Este projeto implementa um "hidrômetro inteligente" experimental que:
 ## Estrutura do Repositório
 
 ```
-backend/        # API + Socket.IO + MQTT bridge
+backend/        # (obsoleto) API + Socket.IO + MQTT bridge (Node.js)
 frontend/       # Dashboard (index.html)
 firmware/       # Código ESP32 (sketch.ino + config.h)
 include/        # Headers compartilhados
@@ -79,10 +143,10 @@ wokwi.toml      # Configuração do simulador
 
 | Componente                        | Versão sugerida   |
 | --------------------------------- | ----------------- |
-| Node.js                           | >= 18 LTS         |
+| Python                            | >= 3.8            |
+| Flask                             | Atual             |
 | Docker / Compose                  | Atual             |
 | VS Code + Extensões               | PlatformIO, Wokwi |
-| Python (para build nativo)        | 3.x               |
 | ESP32 DevKit V1 (físico ou Wokwi) | -                 |
 
 PowerShell (Windows) e Bash (Linux/macOS) funcionam. Exemplos dados em PowerShell; adapte para Bash se necessário.
@@ -95,32 +159,32 @@ git clone https://github.com/<seu-usuario>/hidrometro_inteligente.git
 cd hidrometro_inteligente
 
 # Subir backend + Mosquitto
-$env:PORT="3000"; $env:MQTT_URL="mqtt://mosquitto:1883"; docker compose up -d --build
+$env:PORT="5000"; $env:MQTT_URL="mqtt://mosquitto:1883"; docker compose up -d --build
 
 # Logs
-docker compose logs -f backend
+docker compose logs -f flask
 ```
 
 Acesse:
 
-- Dashboard: http://localhost:3000/dashboard/
-- Controle: http://localhost:3000/control.html
-- Health: http://localhost:3000/healthz
+- Dashboard: http://localhost:5000/dashboard/
+- Controle: http://localhost:5000/control.html
+- Health: http://localhost:5000/healthz
 - Broker MQTT: mqtt://localhost:1883 (porta 9001 para WebSockets)
 
 Usando broker público HiveMQ:
 
 ```powershell
 docker compose down
-$env:MQTT_URL="mqtt://broker.hivemq.com:1883"; docker compose up -d --build backend
+$env:MQTT_URL="mqtt://broker.hivemq.com:1883"; docker compose up -d --build flask
 ```
 
 ## Setup Manual (Sem Docker)
 
 ```powershell
-cd backend
-npm install
-$env:PORT="3000"; $env:MQTT_URL="mqtt://broker.hivemq.com:1883"; node server.js
+cd MVC_sistema_leitura_hidrometros
+pip install -r requirements.txt
+$env:FLASK_APP="MVC_sistema_leitura_hidrometros/app.py"; flask run
 ```
 
 Abrir `frontend/index.html` ou usar rota `/dashboard` servida pelo backend.
@@ -159,26 +223,26 @@ Abrir `frontend/index.html` ou usar rota `/dashboard` servida pelo backend.
 Exemplo POST de comando:
 
 ```powershell
-curl -X POST http://localhost:3000/api/cmd -H "Content-Type: application/json" -d '{"action":"reset"}'
+curl -X POST http://localhost:5000/api/cmd -H "Authorization: Bearer <token>" -H "Content-Type: application/json" -d '{"action":"reset"}'
 ```
 
 ## Comandos Úteis
 
 ```powershell
 # Rebuild containers
-docker compose build --no-cache backend
+docker compose build --no-cache flask
 # Subir em modo debug histórico
 $env:DEBUG_HISTORY="1"; docker compose up -d --build
 # Logs
-docker compose logs -f backend
+docker compose logs -f flask
 # Injetar leituras sintéticas
-for ($i=0;$i -lt 5;$i++){ $t=50+$i; $f=(Get-Random -Minimum 5 -Maximum 12); curl -s -X POST http://localhost:3000/api/data -H "Content-Type: application/json" -d "{`"totalLiters`":$t,`"flowLmin`":$f}" | Out-Null; Start-Sleep -Milliseconds 500 }
+for ($i=0;$i -lt 5;$i++){ $t=50+$i; $f=(Get-Random -Minimum 5 -Maximum 12); curl -s -X POST http://localhost:5000/api/data -H "Authorization: Bearer $token" -H "Content-Type: application/json" -d "{`"totalLiters`":$t,`"flowLmin`":$f}" | Out-Null; Start-Sleep -Milliseconds 500 }
 ```
 
 Bash equivalente:
 
 ```bash
-for i in {0..4}; do t=$((50+i)); f=$(( (RANDOM%7)+5 )); curl -s -X POST http://localhost:3000/api/data -H 'Content-Type: application/json' -d "{\"totalLiters\":$t,\"flowLmin\":$f}" >/dev/null; sleep 0.5; done
+for i in {0..4}; do t=$((50+i)); f=$(( (RANDOM%7)+5 )); curl -s -X POST http://localhost:5000/api/data -H "Authorization: Bearer $token" -H 'Content-Type: application/json' -d "{\"totalLiters\":$t,\"flowLmin\":$f}" >/dev/null; sleep 0.5; done
 ```
 
 ## Simulação de Dados Sem Hardware
@@ -186,7 +250,7 @@ for i in {0..4}; do t=$((50+i)); f=$(( (RANDOM%7)+5 )); curl -s -X POST http://l
 Script interno:
 
 ```powershell
-node backend/tools/simulate-http.js --interval 1000 --port 3000
+python MVC_sistema_leitura_hidrometros/tools/simulate_http.py --interval 1000 --port 5000
 ```
 
 Ele oscila vazão e injeta em `/api/data`.
@@ -196,13 +260,13 @@ Ele oscila vazão e injeta em `/api/data`.
 - Padrão: tenta carregar `better-sqlite3`. Se não disponível, usa memória (`memHistory`, limite 1000).
 - Evento Socket.IO `history:init` envia últimos 200 pontos na conexão.
 - Para persistir:
-  1. Instalar dependência no backend: `npm install better-sqlite3`
+  1. Instalar dependência no backend: `pip install flask-sqlalchemy`
   2. Reiniciar backend (em Docker editar Dockerfile para incluir build deps).
 
 ## Fluxo de Desenvolvimento
 
 1. Editar código.
-2. (Docker) Rebuild: `docker compose build backend && docker compose up -d`.
+2. (Docker) Rebuild: `docker compose build flask && docker compose up -d`.
 3. Verificar logs.
 4. Testar endpoints e dashboard.
 
@@ -211,7 +275,7 @@ Ele oscila vazão e injeta em `/api/data`.
 | Sintoma                            | Causa                            | Solução                                      |
 | ---------------------------------- | -------------------------------- | -------------------------------------------- |
 | /api/history vazio                 | Sem leituras recebidas           | Injete via POST ou verifique broker MQTT     |
-| DB desabilitado                    | Native module faltando           | Instalar better-sqlite3 (ou aceitar memória) |
+| DB desabilitado                    | Native module faltando           | Instalar dependências (ou aceitar memória)   |
 | Gráfico vazio mas valores aparecem | `history:init` não enviado ainda | Recarregar após gerar pontos                 |
 | MQTT sem mensagens                 | Broker divergente                | Unificar URL (backend e firmware)            |
 

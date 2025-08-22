@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}Adicionar Dispositivo - Sistema de Leitura de Hidrômetros{% endblock %}
+
+{% block content %}
+    <h1>Adicionar Novo Dispositivo</h1>
+
+    <form action="{{ url_for('adicionar_dispositivo') }}" method="POST" class="form-add-edit">
+        <div class="form-group">
+            <label for="modelo">Modelo:</label>
+            <input type="text" id="modelo" name="modelo" required>
+        </div>
+        <div class="form-group">
+            <label for="numero_serie">Número de Série:</label>
+            <input type="text" id="numero_serie" name="numero_serie" required>
+        </div>
+        <div class="form-group">
+            <label for="cliente_id">Cliente:</label>
+            <select id="cliente_id" name="cliente_id" required>
+                <option value="">Selecione um Cliente</option>
+                {% for cliente in clientes %}
+                    <option value="{{ cliente.id_cliente }}">{{ cliente.nome }} (ID: {{ cliente.id_cliente }})</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="tipo_dispositivo_id">Tipo de Dispositivo:</label>
+            <select id="tipo_dispositivo_id" name="tipo_dispositivo_id">
+                <option value="">Selecione um Tipo (Opcional)</option>
+                {% for tipo in tipos_dispositivo %}
+                    <option value="{{ tipo.id_tipo_dispositivo }}">{{ tipo.nome_tipo }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="data_instalacao">Data de Instalação:</label>
+            <input type="date" id="data_instalacao" name="data_instalacao">
+        </div>
+        <div class="form-group">
+            <label for="status">Status:</label>
+            <select id="status" name="status">
+                <option value="Ativo">Ativo</option>
+                <option value="Inativo">Inativo</option>
+                <option value="Manutencao">Manutenção</option>
+                <option value="Defeito">Defeito</option>
+            </select>
+        </div>
+        <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Salvar Dispositivo</button>
+        <a href="{{ url_for('listar_dispositivos') }}" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Voltar</a>
+    </form>
+{% endblock %}

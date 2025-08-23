@@ -22,4 +22,10 @@ COPY .env.example ./
 ENV FLASK_APP=MVC_sistema_leitura_hidrometros/app
 EXPOSE 5000
 
-CMD ["python", "MVC_sistema_leitura_hidrometros/MVC_sistema_leitura_hidrometros/run.py"]
+# Script de entrypoint para rodar migrações automaticamente antes de subir o servidor
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+
+ENV AUTO_MIGRATE=1
+
+CMD ["/docker-entrypoint.sh"]

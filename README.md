@@ -81,6 +81,10 @@ Isso sobe:
 - flask (porta 5000)
 - mosquitto (porta 1883 e 9001 websocket)
 
+Notas:
+- Agora o container executa migrações automaticamente (ou `create_all`) via `docker-entrypoint.sh`. Variável `AUTO_MIGRATE=1` controla esse comportamento.
+- Em PowerShell o alias `curl` aponta para `Invoke-WebRequest`; para usar os exemplos utilize `curl.exe` ou substitua pelos comandos `Invoke-RestMethod` equivalentes.
+
 Logs (seguindo apenas Flask):
 ```
 docker compose logs -f flask
@@ -108,7 +112,7 @@ Acessar http://localhost:5000/dashboard
 ## Login / Token
 ```
 # (Opcional) definir senha admin antes (variável de ambiente ADMIN_PASSWORD) ou usar padrão 'admin'
-curl -X POST http://localhost:5000/api/login -H "Content-Type: application/json" -d '{"username":"admin","password":"admin"}'
+curl.exe -X POST http://localhost:5000/api/login -H "Content-Type: application/json" -d '{"username":"admin","password":"admin"}'
 ```
 Resposta: {"token":"<JWT>"}
 Header: Authorization: Bearer <JWT>
@@ -122,7 +126,7 @@ curl -X POST http://localhost:5000/api/data -H "Authorization: Bearer $token" -H
 
 ## Comando
 ```
-curl -X POST http://localhost:5000/api/cmd -H "Authorization: Bearer $token" -H "Content-Type: application/json" -d '{"action":"reset"}'
+curl.exe -X POST http://localhost:5000/api/cmd -H "Authorization: Bearer $token" -H "Content-Type: application/json" -d '{"action":"reset"}'
 ```
 
 ## Funcionalidades

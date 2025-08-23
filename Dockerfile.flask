@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Copia requirements
-COPY MVC_sistema_leitura_hidrometros/MVC_sistema_leitura_hidrometros/requirements.txt ./requirements.txt
+COPY MVC_sistema_leitura_hidrometros/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copia código (estrutura já achatada)

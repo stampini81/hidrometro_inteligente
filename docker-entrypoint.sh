@@ -2,28 +2,45 @@
 set -e
 APP_PATH="MVC_sistema_leitura_hidrometros/MVC_sistema_leitura_hidrometros/app"
 if [ "${AUTO_MIGRATE}" = "1" ]; then
-  echo "[ENTRYPOINT] Executando migrações (se existirem)..."
-  # Usamos diretório raiz /app/migrations (padrão Flask-Migrate); não depende de estar dentro do pacote.
-  if [ ! -d "/app/migrations" ]; then
-    echo "[ENTRYPOINT] Criando estrutura de migrações..."
-    flask --app ${APP_PATH} db init || true
-  fi
-  flask --app ${APP_PATH} db migrate -m "auto" || true
-  flask --app ${APP_PATH} db upgrade || echo "[ENTRYPOINT] upgrade falhou (pode ser inicial)" 
-
-  # Verifica se tabela Cliente existe; se não, cria tudo via create_all (fallback)
+  echo "[ENTRYPOINT] Migrações automáticas via API Flask-Migrate"
   python - <<'PY'
-from app import db, app
+import os
+from app import app, db
 from sqlalchemy import inspect
+from flask_migrate import upgrade, migrate, init, stamp
+from pathlib import Path
+from app.models.usuario_model import Usuario
+
 with app.app_context():
-    insp = inspect(db.engine)
-    tables = insp.get_table_names()
-    if 'Cliente' not in tables:
-        print('[ENTRYPOINT] Tabela Cliente ausente após migrações. Executando create_all() fallback...')
-        db.create_all()
-        print('[ENTRYPOINT] Tabelas agora:', inspect(db.engine).get_table_names())
-    else:
-        print('[ENTRYPOINT] Tabelas detectadas:', tables)
+  mig_dir = Path('migrations')
+  if not mig_dir.exists():
+    print('[ENTRYPOINT] migrations/ ausente -> init')
+    init()
+    # Marca head vazio para evitar erro em upgrade inicial
+    stamp()
+  try:
+    migrate(message='auto')
+  except Exception as e:
+    print('[ENTRYPOINT] migrate falhou (pode ser sem mudanças):', e)
+  try:
+    upgrade()
+  except Exception as e:
+    print('[ENTRYPOINT] upgrade falhou, tentando create_all fallback:', e)
+    db.create_all()
+  insp = inspect(db.engine)
+  print('[ENTRYPOINT] Tabelas:', insp.get_table_names())
+  # Garante admin
+  admin_pass = os.environ.get('ADMIN_PASSWORD','admin')
+  if 'Usuario' in insp.get_table_names() and not Usuario.query.filter_by(username='admin').first():
+    u = Usuario(username='admin', role='admin')
+    u.set_password(admin_pass)
+    db.session.add(u)
+    try:
+      db.session.commit()
+      print('[ENTRYPOINT] Usuário admin criado')
+    except Exception as e:
+      db.session.rollback()
+      print('[ENTRYPOINT] Falha ao criar admin:', e)
 PY
 fi
 

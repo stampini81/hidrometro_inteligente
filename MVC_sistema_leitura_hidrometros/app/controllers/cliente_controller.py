@@ -1,4 +1,4 @@
-from app import app
+from app import app, login_required_view
 from flask import render_template, request, redirect, url_for, flash
 from app.services import cliente_service
 from app.models.cliente_model import Cliente, Endereco, Telefone  # Importa os modelos Endereco e Telefone
@@ -6,6 +6,7 @@ from app.models.cliente_model import Cliente, Endereco, Telefone  # Importa os m
 
 @app.route('/')
 @app.route('/clientes')
+@login_required_view
 def listar_clientes():
     """
     Rota para exibir a lista de clientes.
@@ -15,6 +16,7 @@ def listar_clientes():
 
 
 @app.route('/cliente/adicionar', methods=['GET', 'POST'])
+@login_required_view
 def adicionar_cliente():
     """
     Rota para adicionar um novo cliente.
@@ -36,6 +38,7 @@ def adicionar_cliente():
 
 
 @app.route('/cliente/editar/<int:cliente_id>', methods=['GET', 'POST'])
+@login_required_view
 def editar_cliente(cliente_id):
     """
     Rota para editar um cliente existente.
@@ -62,6 +65,7 @@ def editar_cliente(cliente_id):
 
 
 @app.route('/cliente/excluir/<int:cliente_id>', methods=['POST'])
+@login_required_view
 def excluir_cliente(cliente_id):
     """
     Rota para excluir um cliente.
@@ -76,6 +80,7 @@ def excluir_cliente(cliente_id):
 # --- Novas Rotas para Detalhes, Endereços e Telefones ---
 
 @app.route('/cliente/detalhes/<int:cliente_id>', methods=['GET'])
+@login_required_view
 def detalhes_cliente(cliente_id):
     """
     Rota para exibir os detalhes de um cliente, incluindo seus endereços e telefones.
@@ -91,6 +96,7 @@ def detalhes_cliente(cliente_id):
 
 
 @app.route('/cliente/<int:cliente_id>/endereco/adicionar', methods=['GET', 'POST'])
+@login_required_view
 def adicionar_endereco(cliente_id):
     """
     Rota para adicionar um novo endereço a um cliente.
@@ -124,6 +130,7 @@ def adicionar_endereco(cliente_id):
 
 
 @app.route('/cliente/<int:cliente_id>/endereco/excluir/<int:endereco_id>', methods=['POST'])
+@login_required_view
 def excluir_endereco(cliente_id, endereco_id):
     """
     Rota para excluir um endereço de um cliente.
@@ -136,6 +143,7 @@ def excluir_endereco(cliente_id, endereco_id):
 
 
 @app.route('/cliente/<int:cliente_id>/telefone/adicionar', methods=['GET', 'POST'])
+@login_required_view
 def adicionar_telefone(cliente_id):
     """
     Rota para adicionar um novo telefone a um cliente.
@@ -164,6 +172,7 @@ def adicionar_telefone(cliente_id):
 
 
 @app.route('/cliente/<int:cliente_id>/telefone/excluir/<int:telefone_id>', methods=['POST'])
+@login_required_view
 def excluir_telefone(cliente_id, telefone_id):
     """
     Rota para excluir um telefone de um cliente.
@@ -176,9 +185,11 @@ def excluir_telefone(cliente_id, telefone_id):
 
 
 @app.route('/dashboard', endpoint='dashboard')
+@login_required_view
 def dashboard():
     return render_template('dashboard.html')
 
 @app.route('/control', endpoint='control')
+@login_required_view
 def control():
     return render_template('control.html')

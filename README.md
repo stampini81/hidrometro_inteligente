@@ -16,6 +16,8 @@
 - [Execução Rápida (Docker)](#execução-rápida-docker)
 - [Execução Local (Sem Docker)](#execução-local-sem-docker)
 - [Login / Token](#login--token)
+ - [Login Web](#login-web)
+ - [Login / Token](#login--token)
 - [Envio manual de leitura](#envio-manual-de-leitura)
 - [Comando](#comando)
 - [Funcionalidades](#funcionalidades)
@@ -120,6 +122,16 @@ Invoke-RestMethod -Method Post -Uri http://localhost:5000/api/login -ContentType
 Resposta: {"token":"<JWT>"}
 Header: Authorization: Bearer <JWT>
 Roles suportadas: admin, user (apenas admin pode /api/cmd e /api/debug/history-size).
+
+## Login Web
+
+Agora existe página de login de interface em `/login` com sessão baseada em cookie (Flask session). Fluxo:
+1. Acesse http://localhost:5000/login
+2. Informe usuário `admin` e senha (ADMIN_PASSWORD ou `admin`).
+3. Após autenticação você será redirecionado à lista de clientes.
+
+Navbar mostra links protegidos apenas se autenticado e botão de sair (`/logout`).
+As rotas de interface foram protegidas com verificação de sessão simples (`login_required_view`). Essa camada é independente da API JWT; para chamadas programáticas continue usando `/api/login`.
 
 ## Envio manual de leitura
 ```

@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% block title %}Login - Sistema de Leitura{% endblock %}
+{% block content %}
+<div class="auth-container">
+  <h2>Login</h2>
+  <form method="post">
+    <div class="form-group">
+      <label for="username">Usuário</label>
+      <input type="text" id="username" name="username" required>
+    </div>
+    <div class="form-group">
+      <label for="password">Senha</label>
+      <input type="password" id="password" name="password" required>
+    </div>
+    <button type="submit" class="btn">Entrar</button>
+  </form>
+</div>
+<style>
+.auth-container { max-width:360px;margin:40px auto;padding:24px;background:#fff;border:1px solid #ddd;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,.08);}
+.auth-container h2 { margin-top:0; }
+.auth-container .form-group { margin-bottom:15px; }
+.auth-container label { display:block;font-weight:600;margin-bottom:4px; }
+.auth-container input { width:100%;padding:8px 10px;border:1px solid #bbb;border-radius:4px; }
+.auth-container .btn { width:100%;background:#0077cc;color:#fff;border:none;padding:10px 14px;border-radius:4px;cursor:pointer;font-size:15px;font-weight:600; }
+.auth-container .btn:hover { background:#005fa3; }
+</style>
+{% endblock %}

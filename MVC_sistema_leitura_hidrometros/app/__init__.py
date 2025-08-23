@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, render_template, redirect, url_for, flash, session
 from flask_sqlalchemy import SQLAlchemy
 from flask_socketio import SocketIO
 from flask_migrate import Migrate
@@ -87,6 +87,41 @@ def api_login():
             print(f"[AUTH] Falha login user='{u}' exists={bool(user)} json_keys={list(data.keys())}")
         return jsonify({'error':'invalid credentials'}), 401
     return jsonify({'token': create_token(user.username, user.role), 'role': user.role})
+
+# ------------------ Autenticação para interface web (session) ------------------
+
+def login_required_view(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        if not session.get('user_id'):
+            return redirect(url_for('login_page', next=request.path))
+        return f(*args, **kwargs)
+    return wrapper
+
+@app.route('/login', methods=['GET', 'POST'])
+def login_page():
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        user = Usuario.query.filter_by(username=username, active=True).first()
+        if not user or not user.check_password(password):
+            flash('Credenciais inválidas', 'danger')
+            return render_template('login.html')
+        # Armazena sessão simples
+        session['user_id'] = user.id
+        session['username'] = user.username
+        session['role'] = user.role
+        nxt = request.args.get('next') or url_for('listar_clientes')
+        return redirect(nxt)
+    # GET
+    if session.get('user_id'):
+        return redirect(url_for('listar_clientes'))
+    return render_template('login.html')
+
+@app.route('/logout')
+def logout_page():
+    session.clear()
+    return redirect(url_for('login_page'))
 
 # MQTT Setup
 _mqtt_client = None
@@ -255,6 +290,14 @@ with app.app_context():
                     db.session.rollback()
     except Exception as e:
         print('[INIT] Skip admin creation (tabelas indisponíveis):', e)
+    # Log básico das rotas para debug
+    try:
+        print('[INIT] Rotas registradas:')
+        for r in sorted([(list(rule.methods), rule.rule) for rule in app.url_map.iter_rules()], key=lambda x: x[1]):
+            methods = ','.join(sorted(m for m in r[0] if m in ('GET','POST','PUT','DELETE')))
+            print(f'  {methods:15s} {r[1]}')
+    except Exception as _e:
+        pass
     init_mqtt()
 
 # Endpoint de debug opcional para inspecionar usuários e validar senha padrão

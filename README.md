@@ -46,7 +46,8 @@ Leituras de consumo de água (litros acumulados e vazão instantânea) publicada
 
 - Remoção definitiva do backend Node (bridge migrada para Flask).
 - Endpoints unificados: /api/current, /api/history, /api/data, /api/cmd.
-- Autenticação JWT simples (memória) para endpoints mutadores.
+- Autenticação JWT agora baseada em usuários persistentes (tabela Usuario) com roles (admin/user).
+- Criação automática de usuário admin inicial (senha via ADMIN_PASSWORD ou 'admin').
 - Adição de /healthz e /api/debug/history-size.
 - Colunas total_liters e flow_lmin no modelo Leitura.
 - Suporte a MySQL (via variáveis) com fallback SQLite.
@@ -72,16 +73,27 @@ flask --app MVC_sistema_leitura_hidrometros/MVC_sistema_leitura_hidrometros/app 
 ```
 
 ## Execução Rápida (Docker)
-(Atualize docker-compose se desejar incluir o Flask container; atualmente contém apenas mosquitto legacy — adaptar.)
-
-Exemplo simples (sem compose pronto):
+Com docker e docker-compose instalados:
 ```
-# Build imagem
+docker compose up -d --build
+```
+Isso sobe:
+- flask (porta 5000)
+- mosquitto (porta 1883 e 9001 websocket)
+
+Logs (seguindo apenas Flask):
+```
+docker compose logs -f flask
+```
+Parar serviços:
+```
+docker compose down
+```
+Build manual da imagem (alternativo):
+```
 docker build -t hidrometro-flask -f Dockerfile.flask .
-# Rodar (expondo porta 5000)
 docker run --env-file .env -p 5000:5000 hidrometro-flask
 ```
-(Se ainda não existir Dockerfile específico para Flask, executar localmente conforme abaixo.)
 
 ## Execução Local (Sem Docker)
 ```
@@ -95,10 +107,12 @@ Acessar http://localhost:5000/dashboard
 
 ## Login / Token
 ```
+# (Opcional) definir senha admin antes (variável de ambiente ADMIN_PASSWORD) ou usar padrão 'admin'
 curl -X POST http://localhost:5000/api/login -H "Content-Type: application/json" -d '{"username":"admin","password":"admin"}'
 ```
 Resposta: {"token":"<JWT>"}
 Header: Authorization: Bearer <JWT>
+Roles suportadas: admin, user (apenas admin pode /api/cmd e /api/debug/history-size).
 
 ## Envio manual de leitura
 ```
@@ -151,9 +165,9 @@ Use `diagram.json` em https://wokwi.com/ e ajuste tópicos no código.
 | POST | /api/login | - | Obter JWT |
 | GET | /api/current | - | Último dado |
 | GET | /api/history?limit=200 | - | Histórico recente |
-| POST | /api/data | Bearer | Injetar leitura manual |
-| POST/GET | /api/cmd | Bearer | Enviar comando MQTT |
-| GET | /api/debug/history-size | Bearer | Tamanho do histórico in-memory |
+| POST | /api/data | Bearer (admin/user) | Injetar leitura manual |
+| POST/GET | /api/cmd | Bearer (admin) | Enviar comando MQTT |
+| GET | /api/debug/history-size | Bearer (admin) | Tamanho do histórico in-memory |
 
 ## Simulação de Dados Sem Hardware
 Crie script que faça POST periódico em /api/data ou publique no tópico MQTT configurado.

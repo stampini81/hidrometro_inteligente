@@ -1,15 +1,28 @@
 #!/bin/sh
 set -e
 BASE_PKG_DIR="MVC_sistema_leitura_hidrometros/MVC_sistema_leitura_hidrometros"
-APP_PATH="${BASE_PKG_DIR}/app"
-export PYTHONPATH="/app/${BASE_PKG_DIR}:$PYTHONPATH"
+CODE_DIR="/app/${BASE_PKG_DIR}"
+APP_PATH="${CODE_DIR}/app"
+# Garante que o diretório contendo o pacote app/ esteja no PYTHONPATH e vira cwd
+cd "${CODE_DIR}" 2>/dev/null || echo "[ENTRYPOINT] Aviso: não foi possível entrar em ${CODE_DIR}"
+export PYTHONPATH="${CODE_DIR}:$PYTHONPATH"
 if [ "${AUTO_MIGRATE}" = "1" ]; then
   echo "[ENTRYPOINT] Inicializando banco (create_all + admin)."
   python - <<'PY'
-import os
-from app import app, db
-from sqlalchemy import inspect
-from app.models.usuario_model import Usuario
+import os, sys, pathlib
+# Busca dinâmica pelo diretório que contém o pacote app
+for path in [pathlib.Path.cwd()] + list(pathlib.Path('/app').rglob('*')):
+  if (path / 'app' / '__init__.py').exists():
+    if str(path) not in sys.path:
+      sys.path.insert(0, str(path))
+    break
+try:
+  from app import app, db  # type: ignore
+  from sqlalchemy import inspect
+  from app.models.usuario_model import Usuario  # type: ignore
+except ModuleNotFoundError as e:
+  print('[ENTRYPOINT] Falha import app:', e)
+  raise SystemExit(1)
 with app.app_context():
   db.create_all()
   insp = inspect(db.engine)

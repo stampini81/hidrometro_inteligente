@@ -138,10 +138,26 @@ def _normalize_payload(obj):
 
 # MQTT callbacks
 def _on_mqtt_connect(client, userdata, flags, rc):
-    topic = app.config['MQTT_TOPIC_DADOS']
+    # Sempre tenta assinar o tópico configurado e também o padrão esperado pelo firmware
+    configured = app.config['MQTT_TOPIC_DADOS']
+    default_fw = 'hidrometro/leandro/dados'
+    extra_topics = []
     try:
-        client.subscribe(topic)
-        print(f"[MQTT] Conectado rc={rc} subscrito {topic}")
+        client.subscribe(configured)
+        if configured != default_fw:
+            extra_topics.append(default_fw)
+        # Fallback wildcard para facilitar debug (pode ser removido em produção)
+        base_wildcard = None
+        # Se o tópico tiver ao menos 2 segmentos, usa os dois primeiros como base
+        parts = configured.split('/')
+        if len(parts) >= 2:
+            base_wildcard = f"{parts[0]}/{parts[1]}/#"
+        for t in extra_topics:
+            client.subscribe(t)
+        if base_wildcard and base_wildcard not in (configured, default_fw):
+            client.subscribe(base_wildcard)
+        subscribed = [configured] + extra_topics + ([base_wildcard] if base_wildcard else [])
+        print(f"[MQTT] Conectado rc={rc} subscrito: {', '.join(subscribed)}")
     except Exception as e:
         print('[MQTT] Erro subscribe', e)
 

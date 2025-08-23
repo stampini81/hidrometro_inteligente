@@ -9,7 +9,7 @@ import time
 import re
 import json
 import jwt
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import paho.mqtt.client as mqtt
 from functools import wraps
 from sqlalchemy import inspect
@@ -40,7 +40,7 @@ _JWT_EXP_MIN = int(os.environ.get('JWT_EXP_MINUTES', '60'))
 # Funções de auth persistente
 
 def create_token(username, role):
-    payload = { 'sub': username, 'role': role, 'exp': datetime.utcnow() + timedelta(minutes=_JWT_EXP_MIN) }
+    payload = { 'sub': username, 'role': role, 'exp': datetime.now(timezone.utc) + timedelta(minutes=_JWT_EXP_MIN) }
     return jwt.encode(payload, _JWT_SECRET, algorithm='HS256')
 
 def _decode_token(token):
@@ -82,8 +82,11 @@ def api_login():
         return jsonify({'error':'invalid credentials'}), 401
     user = Usuario.query.filter_by(username=u, active=True).first()
     if not user or not user.check_password(p):
+        # Log somente em modo DEBUG para auxiliar diagnóstico de falha de login
+        if app.config.get('DEBUG'):
+            print(f"[AUTH] Falha login user='{u}' exists={bool(user)} json_keys={list(data.keys())}")
         return jsonify({'error':'invalid credentials'}), 401
-    return jsonify({'token': create_token(user.username, user.role)})
+    return jsonify({'token': create_token(user.username, user.role), 'role': user.role})
 
 # MQTT Setup
 _mqtt_client = None
@@ -120,7 +123,7 @@ def _persist_leitura(data):
     try:
         leitura = Leitura(
             dispositivo_id=dispositivo_id,
-            data_hora=datetime.utcnow(),
+            data_hora=datetime.now(timezone.utc),
             consumo_litros=data['totalLiters'],
             total_liters=data['totalLiters'],
             flow_lmin=data['flowLmin']
@@ -247,10 +250,23 @@ with app.app_context():
                 db.session.add(admin)
                 try:
                     db.session.commit()
-                    print('[INIT] Usuário admin criado')
+                    print('[INIT] Usuário admin criado (username=admin, senha=ENV ADMIN_PASSWORD ou "admin" se não definido)')
                 except Exception:
                     db.session.rollback()
     except Exception as e:
         print('[INIT] Skip admin creation (tabelas indisponíveis):', e)
     init_mqtt()
+
+# Endpoint de debug opcional para inspecionar usuários e validar senha padrão
+if os.environ.get('DEBUG_AUTH') == '1':
+    @app.route('/api/debug/auth')
+    def debug_auth():
+        try:
+            users = [u.username for u in Usuario.query.all()]
+            admin = Usuario.query.filter_by(username='admin').first()
+            test_pass = os.environ.get('ADMIN_PASSWORD','admin')
+            admin_ok = bool(admin and admin.check_password(test_pass))
+            return jsonify({'users': users, 'admin_password_ok_with_ENV_or_default': admin_ok, 'expected_admin_password_env': bool(os.environ.get('ADMIN_PASSWORD'))})
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
 

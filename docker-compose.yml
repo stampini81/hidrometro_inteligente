@@ -4,10 +4,14 @@ services:
       context: .
       dockerfile: Dockerfile.flask
     env_file: .env
-    ports:
-      - "5000:5000"
+    environment:
+      - DEBUG_AUTH=1
+      - AUTO_MIGRATE=1
     depends_on:
       - mosquitto
+      - postgres
+    ports:
+      - "5000:5000"
     restart: unless-stopped
     # Volumes opcionais (descomente se quiser desenvolvimento ao vivo)
     # volumes:
@@ -23,7 +27,19 @@ services:
       - mosquitto_data:/mosquitto/data
       - mosquitto_log:/mosquitto/log
 
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: hidrometro
+      POSTGRES_USER: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
 volumes:
   mosquitto_data:
   mosquitto_log:
+  pgdata:
 # Arquivo adaptado para remover backend Node legado e adicionar serviço Flask

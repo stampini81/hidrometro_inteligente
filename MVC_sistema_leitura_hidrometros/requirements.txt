@@ -9,4 +9,6 @@ flask-migrate==4.0.7
 PyJWT==2.9.0
 werkzeug==3.0.3
 bcrypt==4.2.0
+# PostgreSQL
+psycopg2-binary==2.9.9
 # Decimal precision

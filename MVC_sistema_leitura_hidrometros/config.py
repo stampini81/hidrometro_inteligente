@@ -14,12 +14,19 @@ class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY', 'dev_secret_key_change_me')
 
     # Preferência por MySQL se todas variáveis presentes
-    DB_ENGINE = os.environ.get('DB_ENGINE', 'auto')  # auto, mysql, sqlite
+    DB_ENGINE = os.environ.get('DB_ENGINE', 'auto')  # auto, mysql, sqlite, postgres
     MYSQL_HOST = os.environ.get('DB_HOST', 'localhost')
     MYSQL_PORT = os.environ.get('DB_PORT', '3306')
     MYSQL_USER = os.environ.get('DB_USER', 'root')
     MYSQL_PASS = os.environ.get('DB_PASS', 'alunos')
     MYSQL_DB   = os.environ.get('DB_NAME', 'sistema_leitura_hidrometros')
+
+    # Postgres
+    PG_HOST = os.environ.get('POSTGRES_HOST', 'postgres')
+    PG_PORT = os.environ.get('POSTGRES_PORT', '5432')
+    PG_USER = os.environ.get('POSTGRES_USER', 'postgres')
+    PG_PASS = os.environ.get('POSTGRES_PASSWORD', 'postgres')
+    PG_DB   = os.environ.get('POSTGRES_DB', 'hidrometro')
 
     # Caminho SQLite (fallback)
     SQLITE_PATH = os.environ.get('SQLITE_PATH', str(Path(__file__).parent / 'instance' / 'app.db'))
@@ -28,6 +35,8 @@ class Config:
     SQLALCHEMY_DATABASE_URI = ''
     if DB_ENGINE == 'mysql' or (DB_ENGINE == 'auto' and os.environ.get('DB_HOST')):
         SQLALCHEMY_DATABASE_URI = f"mysql+pymysql://{MYSQL_USER}:{MYSQL_PASS}@{MYSQL_HOST}:{MYSQL_PORT}/{MYSQL_DB}"
+    elif DB_ENGINE == 'postgres':
+        SQLALCHEMY_DATABASE_URI = f"postgresql://{PG_USER}:{PG_PASS}@{PG_HOST}:{PG_PORT}/{PG_DB}"
     else:
         # Garante pasta
         sqlite_dir = Path(SQLITE_PATH).parent

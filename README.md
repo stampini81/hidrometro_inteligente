@@ -67,9 +67,9 @@ HISTORY_LIMIT=1000
 
 ## Migrações
 ```
-flask --app MVC_sistema_leitura_hidrometros/MVC_sistema_leitura_hidrometros/app db init   # primeira vez
-flask --app MVC_sistema_leitura_hidrometros/MVC_sistema_leitura_hidrometros/app db migrate -m "init"
-flask --app MVC_sistema_leitura_hidrometros/MVC_sistema_leitura_hidrometros/app db upgrade
+flask --app MVC_sistema_leitura_hidrometros/app db init   # primeira vez
+flask --app MVC_sistema_leitura_hidrometros/app db migrate -m "init"
+flask --app MVC_sistema_leitura_hidrometros/app db upgrade
 ```
 
 ## Execução Rápida (Docker)
@@ -103,9 +103,9 @@ docker run --env-file .env -p 5000:5000 hidrometro-flask
 ```
 python -m venv .venv
 . .venv/Scripts/activate (Windows PowerShell: .\.venv\Scripts\Activate.ps1)
-pip install -r MVC_sistema_leitura_hidrometros/MVC_sistema_leitura_hidrometros/requirements.txt
+pip install -r MVC_sistema_leitura_hidrometros/requirements.txt
 # (Opcional) Migrações conforme seção anterior
-python MVC_sistema_leitura_hidrometros/MVC_sistema_leitura_hidrometros/run.py
+python MVC_sistema_leitura_hidrometros/run.py
 ```
 Acessar http://localhost:5000/dashboard
 
@@ -113,6 +113,9 @@ Acessar http://localhost:5000/dashboard
 ```
 # (Opcional) definir senha admin antes (variável de ambiente ADMIN_PASSWORD) ou usar padrão 'admin'
 curl.exe -X POST http://localhost:5000/api/login -H "Content-Type: application/json" -d '{"username":"admin","password":"admin"}'
+
+# PowerShell (alternativa mais simples de quoting):
+Invoke-RestMethod -Method Post -Uri http://localhost:5000/api/login -ContentType 'application/json' -Body (@{username='admin';password='admin'} | ConvertTo-Json)
 ```
 Resposta: {"token":"<JWT>"}
 Header: Authorization: Bearer <JWT>
@@ -167,6 +170,7 @@ Use `diagram.json` em https://wokwi.com/ e ajuste tópicos no código.
 |--------|------|------|-----------|
 | GET | /healthz | - | Status |
 | POST | /api/login | - | Obter JWT |
+| GET | /api/debug/auth | (DEBUG_AUTH=1) | Lista usuários e valida senha admin |
 | GET | /api/current | - | Último dado |
 | GET | /api/history?limit=200 | - | Histórico recente |
 | POST | /api/data | Bearer (admin/user) | Injetar leitura manual |

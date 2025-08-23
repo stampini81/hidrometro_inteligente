@@ -175,12 +175,10 @@ def excluir_telefone(cliente_id, telefone_id):
     return redirect(url_for('detalhes_cliente', cliente_id=cliente_id))
 
 
-@app.route('/dashboard')
-def dashboard_view():
-    from flask import render_template
+@app.route('/dashboard', endpoint='dashboard')
+def dashboard():
     return render_template('dashboard.html')
 
-@app.route('/control')
-def control_view():
-    from flask import render_template
+@app.route('/control', endpoint='control')
+def control():
     return render_template('control.html')

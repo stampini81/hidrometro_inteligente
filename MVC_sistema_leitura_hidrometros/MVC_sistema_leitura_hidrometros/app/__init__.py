@@ -190,6 +190,17 @@ def api_cmd():
         return jsonify({'error': str(e)}), 500
     return jsonify({'status': 'sent', 'cmd': cmd})
 
+@app.route('/healthz')
+def healthz():
+    return jsonify({'status': 'ok'}), 200
+
+@app.route('/api/debug/history-size')
+@require_auth
+def debug_history_size():
+    with _hist_lock:
+        size = len(_history)
+    return jsonify({'historySize': size, 'limit': _history.maxlen})
+
 # SocketIO evento inicial
 @socketio.on('connect')
 def on_connect():

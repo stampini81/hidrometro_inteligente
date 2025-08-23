@@ -1,66 +1,77 @@
 param(
-  [switch]$SkipPlatformIO
+  [switch]$SkipVenv,
+  [switch]$NoMigrate,
+  [switch]$Start,
+  [string]$PythonVersion = 'python'
 )
 
-Write-Host "==> Hidrometro: instalando dependências do projeto" -ForegroundColor Cyan
+Write-Host "==> Setup Hidrômetro (Flask Unificado)" -ForegroundColor Cyan
 
-function Test-Command($name) {
-  $null -ne (Get-Command $name -ErrorAction SilentlyContinue)
-}
+function Test-Command($name){ $null -ne (Get-Command $name -ErrorAction SilentlyContinue) }
 
 $repoRoot = Split-Path -Parent $MyInvocation.MyCommand.Path | Split-Path -Parent
 Set-Location $repoRoot
 
-# 1) Backend (Node.js)
-if (Test-Command node) {
-  Write-Host "[Node] Versão: $(node -v)" -ForegroundColor Green
-} else {
-  Write-Warning "Node.js não encontrado. Instale Node LTS (https://nodejs.org/) e execute novamente."
-}
+# Caminhos
+$venvPath = Join-Path $repoRoot '.venv'
+$reqFile = 'MVC_sistema_leitura_hidrometros/MVC_sistema_leitura_hidrometros/requirements.txt'
+$flaskApp = 'MVC_sistema_leitura_hidrometros/MVC_sistema_leitura_hidrometros/app'
 
-if (Test-Path "$repoRoot/backend/package.json") {
-  Write-Host "[Backend] Instalando dependências npm..." -ForegroundColor Cyan
-  Push-Location "$repoRoot/backend"
-  if (Test-Command npm) { npm ci 2>$null; if ($LASTEXITCODE -ne 0) { npm install } }
-  Pop-Location
-} else {
-  Write-Warning "[Backend] package.json não encontrado em backend/"
-}
+if (-not (Test-Path $reqFile)) { Write-Error "Arquivo requirements não encontrado em $reqFile"; exit 1 }
 
-# 2) .env padrão
-$envPath = Join-Path $repoRoot ".env"
-if (-not (Test-Path $envPath)) {
-  Write-Host "[.env] Criando .env padrão" -ForegroundColor Cyan
-  @(
-    'PORT=3000'
-    'MQTT_URL=mqtt://broker.hivemq.com:1883'
-    'MQTT_TOPIC=hidrometro/leandro/dados'
-    'MQTT_CMD_TOPIC=hidrometro/leandro/cmd'
-  ) | Out-File -Encoding ASCII -FilePath $envPath
-} else {
-  Write-Host "[.env] Já existe (mantido)" -ForegroundColor DarkGray
-}
+# 1) Ambiente virtual
+if (-not $SkipVenv) {
+  if (-not (Test-Path $venvPath)) {
+    Write-Host "[VENV] Criando ambiente virtual" -ForegroundColor Cyan
+    & $PythonVersion -m venv .venv
+  } else { Write-Host "[VENV] Já existe (reutilizando)" -ForegroundColor DarkGray }
+  $activate = Join-Path $venvPath 'Scripts/Activate.ps1'
+  if (Test-Path $activate) { . $activate } else { Write-Warning "Não foi possível ativar venv (arquivo não encontrado)." }
+} else { Write-Host "[VENV] Ignorado por parâmetro" -ForegroundColor DarkGray }
 
-# 3) PlatformIO (opcional para Wokwi)
-if (-not $SkipPlatformIO) {
-  $py = $null
-  if (Test-Command py) { $py = 'py' } elseif (Test-Command python) { $py = 'python' }
-  if ($py) {
-    Write-Host "[PlatformIO] Instalando via pip do usuário..." -ForegroundColor Cyan
-    & $py -m pip install --user platformio | Out-Null
-    if ($LASTEXITCODE -eq 0) {
-      Write-Host "[PlatformIO] Instalado com sucesso." -ForegroundColor Green
-    } else {
-      Write-Warning "[PlatformIO] Falha ao instalar. Instale manualmente a extensão PlatformIO IDE no VS Code."
-    }
+# 2) Dependências
+Write-Host "[PIP] Instalando dependências" -ForegroundColor Cyan
+pip install --upgrade pip | Out-Null
+pip install -r $reqFile
+if ($LASTEXITCODE -ne 0) { Write-Error "Falha ao instalar dependências"; exit 1 }
+
+# 3) .env
+if (-not (Test-Path '.env')) {
+  if (Test-Path '.env.example') {
+    Copy-Item .env.example .env
+    Write-Host "[.env] Criado a partir de .env.example" -ForegroundColor Green
   } else {
-    Write-Warning "Python não encontrado. Para compilar firmware, instale Python 3 e/ou a extensão PlatformIO IDE no VS Code."
+    @(
+      'DB_ENGINE=sqlite'
+      'MQTT_URL=mqtt://broker.hivemq.com:1883'
+      'MQTT_TOPIC_DADOS=hidrometro/dados'
+      'MQTT_TOPIC_CMD=hidrometro/cmd'
+      'SECRET_KEY=changeme'
+      'HISTORY_LIMIT=1000'
+    ) | Out-File -Encoding ASCII .env
+    Write-Host "[.env] Criado básico (editar depois)" -ForegroundColor Yellow
   }
-} else {
-  Write-Host "[PlatformIO] Ignorado por parâmetro." -ForegroundColor DarkGray
+} else { Write-Host "[.env] Já existe (mantido)" -ForegroundColor DarkGray }
+
+# 4) Migrações
+if (-not $NoMigrate) {
+  Write-Host "[DB] Executando migrações" -ForegroundColor Cyan
+  $flaskCmd = "python -m flask --app $flaskApp"
+  if (-not (Test-Path 'migrations')) { Invoke-Expression "$flaskCmd db init" }
+  Invoke-Expression "$flaskCmd db migrate -m 'auto'" 2>$null | Out-Null
+  Invoke-Expression "$flaskCmd db upgrade"
+} else { Write-Host "[DB] Migrações puladas (--NoMigrate)" -ForegroundColor DarkGray }
+
+# 5) Resumo
+Write-Host "==> Concluído." -ForegroundColor Green
+Write-Host "Dashboard: http://localhost:5000/dashboard" -ForegroundColor Cyan
+
+if ($Start) {
+  Write-Host "[RUN] Iniciando servidor (Ctrl+C para parar)" -ForegroundColor Cyan
+  python MVC_sistema_leitura_hidrometros/MVC_sistema_leitura_hidrometros/run.py
 }
 
-Write-Host "==> Pronto. Próximos passos sugeridos:" -ForegroundColor Cyan
-Write-Host " - (Wokwi) Compile o firmware: PlatformIO: Build (gera .pio/build/esp32dev/firmware.bin)"
-Write-Host " - (Backend) Suba com Docker: docker compose up --build -d backend"
-Write-Host " - Acesse dashboard: http://localhost:3000/dashboard"
+Write-Host "Dicas:" -ForegroundColor Cyan
+Write-Host "  .\\scripts\\install-requirements.ps1 -Start" -ForegroundColor DarkGray
+Write-Host "  .\\scripts\\install-requirements.ps1 -SkipVenv -NoMigrate" -ForegroundColor DarkGray
+# Fim

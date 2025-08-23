@@ -1,10 +1,8 @@
 #!/bin/sh
 set -e
-BASE_PKG_DIR="MVC_sistema_leitura_hidrometros"
-CODE_DIR="/app/${BASE_PKG_DIR}"
+CODE_DIR="/app/MVC_sistema_leitura_hidrometros"
 APP_PATH="${CODE_DIR}/app"
-# Garante que o diretório contendo o pacote app/ esteja no PYTHONPATH e vira cwd
-cd "${CODE_DIR}" 2>/dev/null || echo "[ENTRYPOINT] Aviso: não foi possível entrar em ${CODE_DIR}"
+cd "${CODE_DIR}" || echo "[ENTRYPOINT] Aviso: não foi possível entrar em ${CODE_DIR}"
 export PYTHONPATH="${CODE_DIR}:$PYTHONPATH"
 if [ "${AUTO_MIGRATE}" = "1" ]; then
   echo "[ENTRYPOINT] Inicializando banco (create_all + admin)."

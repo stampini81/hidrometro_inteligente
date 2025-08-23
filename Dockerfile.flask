@@ -15,8 +15,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY MVC_sistema_leitura_hidrometros/MVC_sistema_leitura_hidrometros/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copia código (mantém apenas um nível, evitando duplicação interna)
-COPY MVC_sistema_leitura_hidrometros/MVC_sistema_leitura_hidrometros ./MVC_sistema_leitura_hidrometros
+# Copia código (estrutura já achatada)
+COPY MVC_sistema_leitura_hidrometros ./MVC_sistema_leitura_hidrometros
 COPY .env.example ./
 
 ENV FLASK_APP=MVC_sistema_leitura_hidrometros/app

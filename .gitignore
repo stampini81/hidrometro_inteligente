@@ -29,9 +29,11 @@ __pycache__/
 .env
 .env.*
 !.env.example
+.venv/
 
 # Databases / persistência local
 instance/
+**/instance/
 *.db
 *.db-*
 *.sqlite

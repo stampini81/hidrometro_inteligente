@@ -12,6 +12,7 @@ import jwt
 from datetime import datetime, timedelta
 import paho.mqtt.client as mqtt
 from functools import wraps
+from sqlalchemy import inspect
 
 app = Flask(__name__)
 app.config.from_object('config.Config')
@@ -23,8 +24,9 @@ migrate = Migrate(app, db)
 socketio = SocketIO(app, cors_allowed_origins='*')
 
 # Import models
-from app.models import cliente_model, dispositivo_model, faturamento_model
+from app.models import cliente_model, dispositivo_model, faturamento_model, usuario_model
 from app.models.dispositivo_model import Dispositivo, Leitura
+from app.models.usuario_model import Usuario
 
 # Histórico em memória
 _history = deque(maxlen=app.config.get('HISTORY_LIMIT', 1000))
@@ -33,14 +35,16 @@ _hist_lock = Lock()
 
 # Config auth
 _JWT_SECRET = app.config.get('SECRET_KEY', 'dev')
-_JWT_EXP_MIN = 60
+_JWT_EXP_MIN = int(os.environ.get('JWT_EXP_MINUTES', '60'))
 
-# Usuários simples em memória (poderia ser tabela)
-_USERS = { 'admin': {'password': os.environ.get('ADMIN_PASSWORD','admin')} }
+# Funções de auth persistente
 
-def create_token(username):
-    payload = { 'sub': username, 'exp': datetime.utcnow() + timedelta(minutes=_JWT_EXP_MIN) }
+def create_token(username, role):
+    payload = { 'sub': username, 'role': role, 'exp': datetime.utcnow() + timedelta(minutes=_JWT_EXP_MIN) }
     return jwt.encode(payload, _JWT_SECRET, algorithm='HS256')
+
+def _decode_token(token):
+    return jwt.decode(token, _JWT_SECRET, algorithms=['HS256'])
 
 def require_auth(f):
     @wraps(f)
@@ -50,20 +54,36 @@ def require_auth(f):
             return jsonify({'error':'missing token'}), 401
         token = auth.split(' ',1)[1]
         try:
-            jwt.decode(token, _JWT_SECRET, algorithms=['HS256'])
-        except Exception as e:
+            payload = _decode_token(token)
+            request.user = payload
+        except Exception:
             return jsonify({'error':'invalid token'}), 401
         return f(*args, **kwargs)
     return wrapper
+
+def require_role(*roles):
+    def decorator(f):
+        @wraps(f)
+        def wrapper(*args, **kwargs):
+            if not getattr(request, 'user', None):
+                return jsonify({'error':'unauthorized'}), 401
+            user_role = request.user.get('role')
+            if roles and user_role not in roles:
+                return jsonify({'error':'forbidden'}), 403
+            return f(*args, **kwargs)
+        return wrapper
+    return decorator
 
 @app.route('/api/login', methods=['POST'])
 def api_login():
     data = request.get_json(silent=True) or {}
     u = data.get('username'); p = data.get('password')
-    user = _USERS.get(u)
-    if not user or user['password'] != p:
+    if not u or not p:
         return jsonify({'error':'invalid credentials'}), 401
-    return jsonify({'token': create_token(u)})
+    user = Usuario.query.filter_by(username=u, active=True).first()
+    if not user or not user.check_password(p):
+        return jsonify({'error':'invalid credentials'}), 401
+    return jsonify({'token': create_token(user.username, user.role)})
 
 # MQTT Setup
 _mqtt_client = None
@@ -74,6 +94,8 @@ def _normalize_payload(obj):
     flow = o.get('flowLmin') or o.get('flowRate') or 0
     ts = o.get('ts') or int(time.time()*1000)
     serial = o.get('numeroSerie') or o.get('serial') or o.get('numero_serie')
+    if serial:
+        serial = str(serial).strip().upper()
     return { 'ts': int(ts), 'totalLiters': float(total), 'flowLmin': float(flow), 'numero_serie': serial }
 
 # MQTT callbacks
@@ -86,16 +108,18 @@ def _on_mqtt_connect(client, userdata, flags, rc):
         print('[MQTT] Erro subscribe', e)
 
 def _persist_leitura(data):
-    # tenta correlacionar dispositivo se numero_serie no payload
     dispositivo_id = None
     serial = data.get('numero_serie')
     if serial:
         disp = Dispositivo.query.filter_by(numero_serie=serial).first()
         if disp:
             dispositivo_id = disp.id_dispositivo
+    if dispositivo_id is None:
+        # Sem dispositivo correspondente: ignorar persistência para evitar FK inválida
+        return
     try:
         leitura = Leitura(
-            dispositivo_id=dispositivo_id if dispositivo_id else 1, # se None e quiser rejeitar, ajuste
+            dispositivo_id=dispositivo_id,
             data_hora=datetime.utcnow(),
             consumo_litros=data['totalLiters'],
             total_liters=data['totalLiters'],
@@ -123,7 +147,6 @@ def _on_mqtt_message(client, userdata, msg):
 def init_mqtt():
     global _mqtt_client
     url = app.config['MQTT_URL']
-    # Extrai host e porta de formato mqtt://host:port
     m = re.match(r'mqtt://([^:/]+)(?::(\d+))?', url)
     host = 'broker.hivemq.com'
     port = 1883
@@ -140,7 +163,6 @@ def init_mqtt():
     except Exception as e:
         print('[MQTT] Falha ao conectar', e)
 
-# API Blueprint simplificado via rotas diretas
 @app.route('/api/current')
 def api_current():
     with _hist_lock:
@@ -155,6 +177,7 @@ def api_history():
 
 @app.route('/api/data', methods=['POST'])
 @require_auth
+@require_role('admin','user')
 def api_data():
     payload = request.get_json(silent=True) or {}
     data = _normalize_payload(payload)
@@ -167,6 +190,7 @@ def api_data():
 
 @app.route('/api/cmd', methods=['POST', 'GET'])
 @require_auth
+@require_role('admin')
 def api_cmd():
     action = None
     value = None
@@ -196,12 +220,12 @@ def healthz():
 
 @app.route('/api/debug/history-size')
 @require_auth
+@require_role('admin')
 def debug_history_size():
     with _hist_lock:
         size = len(_history)
     return jsonify({'historySize': size, 'limit': _history.maxlen})
 
-# SocketIO evento inicial
 @socketio.on('connect')
 def on_connect():
     with _hist_lock:
@@ -210,10 +234,23 @@ def on_connect():
         if _last_data:
             socketio.emit('data', _last_data)
 
-# Import controllers html existentes
 from app.controllers import cliente_controller, dispositivo_controller, tipo_dispositivo_controller, faturamento_controller
 
 with app.app_context():
-    db.create_all()
+    # Protege criação do admin caso tabelas ainda não existam (fase de migração inicial)
+    try:
+        insp = inspect(db.engine)
+        if 'Usuario' in insp.get_table_names():
+            if not Usuario.query.filter_by(username='admin').first():
+                admin = Usuario(username='admin', role='admin')
+                admin.set_password(os.environ.get('ADMIN_PASSWORD','admin'))
+                db.session.add(admin)
+                try:
+                    db.session.commit()
+                    print('[INIT] Usuário admin criado')
+                except Exception:
+                    db.session.rollback()
+    except Exception as e:
+        print('[INIT] Skip admin creation (tabelas indisponíveis):', e)
     init_mqtt()
 

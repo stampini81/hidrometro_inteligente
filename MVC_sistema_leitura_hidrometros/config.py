@@ -52,6 +52,10 @@ class Config:
     # Serial padrão opcional (usado se payload MQTT não trouxer numeroSerie)
     DEFAULT_DEVICE_SERIAL = os.environ.get('DEFAULT_DEVICE_SERIAL')
     DEFAULT_DEVICE_CLIENT_ID = os.environ.get('DEFAULT_DEVICE_CLIENT_ID')
+    # Vazamento: fluxo acima do limiar por leitura já aciona (simples)
+    LEAK_FLOW_THRESHOLD = float(os.environ.get('LEAK_FLOW_THRESHOLD', '0.2'))  # L/min
+    # Futuro: poderíamos exigir duração mínima (não usado ainda)
+    LEAK_MIN_SECONDS = int(os.environ.get('LEAK_MIN_SECONDS', '0'))
 
     # Limite de histórico em memória
     HISTORY_LIMIT = int(os.environ.get('HISTORY_LIMIT', '1000'))

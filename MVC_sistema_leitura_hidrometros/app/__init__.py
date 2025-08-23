@@ -209,6 +209,20 @@ def _on_mqtt_message(client, userdata, msg):
     _persist_leitura(data)
     print(f"[MQTT] NORMALIZADO ts={data['ts']} total={data['totalLiters']} flow={data['flowLmin']} serial={data.get('numero_serie')}")
     socketio.emit('data', data)
+    # Detecção simples de vazamento: flow acima do limiar configurado por qualquer leitura
+    try:
+        thr = float(app.config.get('LEAK_FLOW_THRESHOLD', 0.0))
+        if data['flowLmin'] is not None and data['flowLmin'] >= thr and thr > 0:
+            socketio.emit('alert', {
+                'type': 'leak',
+                'message': f"Possível vazamento: vazão {data['flowLmin']:.2f} L/min >= limiar {thr:.2f}",
+                'flowLmin': data['flowLmin'],
+                'totalLiters': data['totalLiters'],
+                'serial': data.get('numero_serie'),
+                'ts': data['ts']
+            })
+    except Exception as _e:
+        pass
 
 # Inicializa MQTT
 def init_mqtt():

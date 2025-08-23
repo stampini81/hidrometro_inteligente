@@ -3,6 +3,7 @@
 <h2>Tempo Real - {{ cliente.nome }}</h2>
 <div id="devices" class="card" style="padding:1rem;background:#fff;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,.1);">
   <div id="status" style="margin-bottom:1rem;font-size:0.9rem;color:#555;">Conectando...</div>
+  <div id="alerts" style="margin-bottom:1rem;"></div>
   <table style="width:100%;border-collapse:collapse;">
     <thead>
       <tr style="text-align:left;border-bottom:2px solid #ddd;">
@@ -17,11 +18,25 @@
 </div>
 <script src="/socket.io/socket.io.js"></script>
 <script>
-const clienteId = {{ cliente.id_cliente }};
+const clienteId = parseInt("{{ cliente.id_cliente }}", 10);
 const tbody = document.getElementById('tbody');
 const statusEl = document.getElementById('status');
 const socket = io();
 let dispositivos = {}; // key: numero_serie
+let alertsDiv = document.getElementById('alerts');
+function pushAlert(text){
+  const el = document.createElement('div');
+  el.textContent = text;
+  el.style.background = '#c62828';
+  el.style.color = '#fff';
+  el.style.padding = '6px 10px';
+  el.style.borderRadius = '4px';
+  el.style.marginBottom = '4px';
+  el.style.fontSize = '0.85rem';
+  alertsDiv.prepend(el);
+  // Limita quantidade
+  while(alertsDiv.children.length > 5){ alertsDiv.removeChild(alertsDiv.lastChild); }
+}
 
 function render(){
   tbody.innerHTML = Object.values(dispositivos).map(d => {
@@ -66,6 +81,12 @@ socket.on('data', payload => {
   dispositivos[serial].flowLmin = payload.flowLmin;
   dispositivos[serial].updated = Date.now();
   render();
+});
+
+socket.on('alert', a => {
+  if(a.type === 'leak'){
+    pushAlert(a.message);
+  }
 });
 
 carregarIniciais();

@@ -169,16 +169,23 @@ def _persist_leitura(data):
         db.session.rollback()
 
 def _on_mqtt_message(client, userdata, msg):
+    # Log bruto (limitando tamanho para evitar flood)
     try:
-        payload = json.loads(msg.payload.decode('utf-8'))
+        raw = msg.payload.decode('utf-8', errors='replace')
     except Exception:
-        print('[MQTT] payload inválido')
+        raw = '<decode-error>'
+    print(f"[MQTT] RECEBIDO topic={msg.topic} bytes={len(msg.payload)} raw={raw[:200]}")
+    try:
+        payload = json.loads(raw)
+    except Exception as e:
+        print('[MQTT] payload inválido (JSON parse falhou):', e)
         return
     data = _normalize_payload(payload)
     with _hist_lock:
         _last_data.update(data)
         _history.append({'ts': data['ts'], 'totalLiters': data['totalLiters'], 'flowLmin': data['flowLmin']})
     _persist_leitura(data)
+    print(f"[MQTT] NORMALIZADO ts={data['ts']} total={data['totalLiters']} flow={data['flowLmin']} serial={data.get('numero_serie')}")
     socketio.emit('data', data)
 
 # Inicializa MQTT

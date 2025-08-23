@@ -37,4 +37,15 @@ with app.app_context():
 PY
 fi
 
-exec python MVC_sistema_leitura_hidrometros/run.py
+echo "[ENTRYPOINT] Localizando run.py..."
+RUN_FILE=""
+for p in \$(find /app -maxdepth 3 -type f -name run.py); do
+  if grep -q "from app import" "$p" 2>/dev/null; then
+    RUN_FILE="$p"; break
+  fi
+done
+if [ -z "$RUN_FILE" ]; then
+  echo "[ENTRYPOINT] run.py não encontrado. Listagem de /app:"; ls -R /app; exit 1
+fi
+echo "[ENTRYPOINT] Executando: $RUN_FILE"
+exec python "$RUN_FILE"

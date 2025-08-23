@@ -1,6 +1,6 @@
 #!/bin/sh
 set -e
-BASE_PKG_DIR="MVC_sistema_leitura_hidrometros/MVC_sistema_leitura_hidrometros"
+BASE_PKG_DIR="MVC_sistema_leitura_hidrometros"
 CODE_DIR="/app/${BASE_PKG_DIR}"
 APP_PATH="${CODE_DIR}/app"
 # Garante que o diretório contendo o pacote app/ esteja no PYTHONPATH e vira cwd
@@ -39,4 +39,4 @@ with app.app_context():
 PY
 fi
 
-exec python MVC_sistema_leitura_hidrometros/MVC_sistema_leitura_hidrometros/run.py
+exec python MVC_sistema_leitura_hidrometros/run.py

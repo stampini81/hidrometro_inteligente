@@ -27,6 +27,7 @@ socketio = SocketIO(app, cors_allowed_origins='*')
 from app.models import cliente_model, dispositivo_model, faturamento_model, usuario_model
 from app.models.dispositivo_model import Dispositivo, Leitura
 from app.models.usuario_model import Usuario
+from app.models.cliente_model import Cliente
 
 # Histórico em memória
 _history = deque(maxlen=app.config.get('HISTORY_LIMIT', 1000))
@@ -327,6 +328,33 @@ with app.app_context():
     except Exception as _e:
         pass
     init_mqtt()
+    # Garantir vinculo do dispositivo padrão a um cliente específico se configurado
+    try:
+        default_serial = app.config.get('DEFAULT_DEVICE_SERIAL')
+        client_id_cfg = app.config.get('DEFAULT_DEVICE_CLIENT_ID')
+        if default_serial and client_id_cfg:
+            try:
+                client_id_int = int(client_id_cfg)
+            except ValueError:
+                client_id_int = None
+            if client_id_int:
+                cli = Cliente.query.get(client_id_int)
+                if cli:
+                    disp = Dispositivo.query.filter_by(numero_serie=default_serial).first()
+                    if not disp:
+                        # cria dispositivo mínimo
+                        disp = Dispositivo(modelo='SIMULADOR', numero_serie=default_serial, cliente_id=cli.id_cliente, status='Ativo')
+                        db.session.add(disp)
+                        db.session.commit()
+                        print(f"[INIT] Dispositivo padrão criado e vinculado ao cliente {cli.id_cliente}")
+                    elif disp.cliente_id != cli.id_cliente:
+                        disp.cliente_id = cli.id_cliente
+                        db.session.commit()
+                        print(f"[INIT] Dispositivo padrão atualizado para cliente {cli.id_cliente}")
+                else:
+                    print('[INIT] Cliente padrão configurado não encontrado: ID', client_id_cfg)
+    except Exception as e:
+        print('[INIT] Erro ao garantir vínculo dispositivo padrão:', e)
 
 # Endpoint de debug opcional para inspecionar usuários e validar senha padrão
 if os.environ.get('DEBUG_AUTH') == '1':

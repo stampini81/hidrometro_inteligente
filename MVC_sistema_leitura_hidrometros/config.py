@@ -51,6 +51,7 @@ class Config:
     MQTT_TOPIC_CMD = os.environ.get('MQTT_TOPIC_CMD', 'hidrometro/leandro/cmd')
     # Serial padrão opcional (usado se payload MQTT não trouxer numeroSerie)
     DEFAULT_DEVICE_SERIAL = os.environ.get('DEFAULT_DEVICE_SERIAL')
+    DEFAULT_DEVICE_CLIENT_ID = os.environ.get('DEFAULT_DEVICE_CLIENT_ID')
 
     # Limite de histórico em memória
     HISTORY_LIMIT = int(os.environ.get('HISTORY_LIMIT', '1000'))

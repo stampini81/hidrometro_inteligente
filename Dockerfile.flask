@@ -19,7 +19,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY MVC_sistema_leitura_hidrometros ./MVC_sistema_leitura_hidrometros
 COPY .env.example ./
 # Copia .env ativo (se existir no contexto) para dentro da imagem para que config.py possa carregá-lo
-COPY .env ./
 
 ENV FLASK_APP=MVC_sistema_leitura_hidrometros/app
 EXPOSE 5000

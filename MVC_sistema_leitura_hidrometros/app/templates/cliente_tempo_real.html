@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>Tempo Real - {{ cliente.nome }}</h2>
+<div id="devices" class="card" style="padding:1rem;background:#fff;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,.1);">
+  <div id="status" style="margin-bottom:1rem;font-size:0.9rem;color:#555;">Conectando...</div>
+  <table style="width:100%;border-collapse:collapse;">
+    <thead>
+      <tr style="text-align:left;border-bottom:2px solid #ddd;">
+        <th>Dispositivo</th>
+        <th>Total (L)</th>
+        <th>Vazão (L/min)</th>
+        <th>Atualizado</th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+</div>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const clienteId = {{ cliente.id_cliente }};
+const tbody = document.getElementById('tbody');
+const statusEl = document.getElementById('status');
+const socket = io();
+let dispositivos = {}; // key: numero_serie
+
+function render(){
+  tbody.innerHTML = Object.values(dispositivos).map(d => {
+    return `<tr style="border-bottom:1px solid #eee;">
+      <td>${d.numero_serie || '(sem serial)'}</td>
+      <td>${d.totalLiters?.toFixed ? d.totalLiters.toFixed(2) : '-'}</td>
+      <td>${d.flowLmin?.toFixed ? d.flowLmin.toFixed(2) : '-'}</td>
+      <td>${d.updated ? new Date(d.updated).toLocaleTimeString() : '-'}</td>
+    </tr>`
+  }).join('');
+}
+
+async function carregarIniciais(){
+  try {
+    const r = await fetch(`/api/clientes/${clienteId}/dispositivos/current`);
+    if(!r.ok) return;
+    const data = await r.json();
+    (data.dispositivos||[]).forEach(d => {
+      dispositivos[d.numero_serie] = {
+        numero_serie: d.numero_serie,
+        totalLiters: d.ultima_leitura?.total_liters || 0,
+        flowLmin: d.ultima_leitura?.flow_lmin || 0,
+        updated: d.ultima_leitura?.data_hora
+      };
+    });
+    render();
+  } catch(e){ console.error(e); }
+}
+
+socket.on('connect', ()=> statusEl.textContent='Conectado');
+socket.on('disconnect', ()=> statusEl.textContent='Desconectado');
+
+socket.on('data', payload => {
+  // Filtra apenas se tiver serial e se o dispositivo já estiver associado ao cliente
+  const serial = (payload.numero_serie||'').toUpperCase();
+  if(!serial) return; // precisamos do serial
+  if(!dispositivos[serial]){
+    // opcional: criar linha nova automaticamente
+    dispositivos[serial] = { numero_serie: serial };
+  }
+  dispositivos[serial].totalLiters = payload.totalLiters;
+  dispositivos[serial].flowLmin = payload.flowLmin;
+  dispositivos[serial].updated = Date.now();
+  render();
+});
+
+carregarIniciais();
+</script>
+{% endblock %}

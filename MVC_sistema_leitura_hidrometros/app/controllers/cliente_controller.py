@@ -193,3 +193,12 @@ def dashboard():
 @login_required_view
 def control():
     return render_template('control.html')
+
+@app.route('/cliente/<int:cliente_id>/tempo-real')
+@login_required_view
+def cliente_tempo_real(cliente_id):
+    cliente = cliente_service.buscar_cliente_por_id(cliente_id)
+    if not cliente:
+        flash('Cliente não encontrado.', 'danger')
+        return redirect(url_for('listar_clientes'))
+    return render_template('cliente_tempo_real.html', cliente=cliente)

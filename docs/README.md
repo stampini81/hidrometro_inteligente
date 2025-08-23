@@ -1,132 +1,119 @@
+# Hidrômetro Inteligente — Execução (Flask Unificado)
 
-# Hidrômetro Inteligente — Passo a Passo de Execução
+> Agora apenas Flask + Socket.IO + MQTT. Backend Node removido.
 
-> Requisitos rápidos: consulte `docs/REQUIREMENTS.md` para uma lista completa do que instalar (Docker/Node, PlatformIO, Wokwi, etc.).
+## Estrutura do Projeto (atual)
+- `MVC_sistema_leitura_hidrometros/` — Backend Flask (API, Socket.IO, MQTT, modelos)
+- `firmware/` — Código ESP32 (publica MQTT JSON)
+- `img/` — Screenshots dashboard/controle
+- `mosquitto/` — Configuração broker local (docker-compose)
+- `scripts/` — Scripts auxiliares
+- `docs/` — Documentação
 
-## Estrutura do Projeto
+## Requisitos Rápidos
+Veja `docs/REQUIREMENTS.md` (atualizar para remover Node). Essencial:
+- Python 3.11+
+- Docker (opcional, recomendado)
+- Broker MQTT (Mosquitto local via compose ou HiveMQ público)
+- curl (testes) / MQTT Explorer (debug)
 
-- `firmware/` — Código do ESP32 (C++/Arduino, MQTT)
-- `backend/` — Backend Node.js/Express para receber dados
-- `frontend/` — Dashboard web para visualização
-- `docs/` — Documentação e instruções
-- `simulacao/` — Scripts e dicas para simulação
+## Configuração do .env
+Copie `.env.example` para `.env` e ajuste:
+```
+DB_ENGINE=sqlite
+MQTT_URL=mqtt://broker.hivemq.com:1883
+MQTT_TOPIC_DADOS=hidrometro/dados
+MQTT_TOPIC_CMD=hidrometro/cmd
+SECRET_KEY=changeme
+HISTORY_LIMIT=1000
+```
 
----
+## Execução via Docker Compose
+```
+docker compose up -d --build
+# Logs
+docker compose logs -f flask
+```
+Acessos:
+- Dashboard: http://localhost:5000/dashboard
+- Controle:  http://localhost:5000/control
+- Health:    http://localhost:5000/healthz
 
-## Passo a Passo para Executar o Sistema
+## Execução Local (Sem Docker)
+```
+python -m venv .venv
+. .venv/Scripts/Activate.ps1
+pip install -r MVC_sistema_leitura_hidrometros/MVC_sistema_leitura_hidrometros/requirements.txt
+python MVC_sistema_leitura_hidrometros/MVC_sistema_leitura_hidrometros/run.py
+```
 
-### 1. Firmware (ESP32)
+## Migrações (Banco)
+Primeira vez:
+```
+flask --app MVC_sistema_leitura_hidrometros/MVC_sistema_leitura_hidrometros/app db init
+```
+Novas mudanças de modelo:
+```
+flask --app MVC_sistema_leitura_hidrometros/MVC_sistema_leitura_hidrometros/app db migrate -m "alter"
+flask --app MVC_sistema_leitura_hidrometros/MVC_sistema_leitura_hidrometros/app db upgrade
+```
 
-1. Abra o arquivo `firmware/sketch.ino` na IDE Arduino ou PlatformIO.
-2. Instale as bibliotecas necessárias:
-   - WiFi.h
-   - PubSubClient
-3. Configure o WiFi e broker MQTT em `config.h`.
-4. Compile e faça upload para o ESP32 físico **ou** simule no Wokwi ([link](https://wokwi.com/)).
-5. O ESP32 irá publicar dados em `hidrometro/leandro/dados` no broker MQTT.
+## Autenticação / Token
+```
+curl -X POST http://localhost:5000/api/login -H "Content-Type: application/json" -d '{"username":"admin","password":"admin"}'
+```
+Resposta: {"token":"<JWT>"}
+Header: `Authorization: Bearer <JWT>`.
 
-### 2. Backend (Node.js)
+## Injetar Leitura Manual
+```
+TOKEN=$(curl -s -X POST http://localhost:5000/api/login -H 'Content-Type: application/json' -d '{"username":"admin","password":"admin"}' | python -c "import sys,json;print(json.load(sys.stdin)['token'])")
+curl -X POST http://localhost:5000/api/data -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{"totalLiters":42.5,"flowLmin":3.1,"numeroSerie":"ABC123"}'
+```
 
-1. Instale o Node.js ([download aqui](https://nodejs.org/)).
-2. Abra o terminal e acesse a pasta `backend/`:
-   ```powershell
-   cd backend
-   ```
-3. Instale as dependências e inicie o servidor:
-   ```powershell
-   npm install
-   npm start
-   ```
-4. Backend disponível em `http://localhost:3000`.
-   - Dashboard de controle (envio de comandos MQTT): `http://localhost:3000/control.html`
-   - API REST atual: `GET /api/current`
-   - API para comandos MQTT: `POST /api/cmd` com JSON `{ "action":"reset" }` ou `{ "action":"setCalibration", "value":7.5 }`
+## Enviar Comando MQTT
+```
+curl -X POST http://localhost:5000/api/cmd -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d '{"action":"reset"}'
+```
 
-Opcional: rodar com Docker (recomendado)
-Perfis disponíveis:
-- Broker local (Mosquitto com WebSockets):
-   ```powershell
-   cd c:\Users\Leandro\Desktop\hidrometro_inteligente
-   docker compose up --build -d
-   # Acesso: http://localhost:3000, MQTT: mqtt://localhost:1883, WS: ws://localhost:9001
-   docker compose logs -f backend
-   ```
-- Broker público (para Wokwi):
-   1. Crie/edite `.env` na raiz:
-       ```env
-       PORT=3000
-       MQTT_URL=mqtt://broker.hivemq.com:1883
-       MQTT_TOPIC=hidrometro/leandro/dados
-       MQTT_CMD_TOPIC=hidrometro/leandro/cmd
-       ```
-   2. Suba apenas o backend:
-       ```powershell
-       docker compose up --build -d backend
-       docker compose logs -f backend
-       ```
+## Endpoints Principais
+| Método | Rota | Auth | Descrição |
+|--------|------|------|-----------|
+| GET | /healthz | - | Status |
+| POST | /api/login | - | Obter JWT |
+| GET | /api/current | - | Última leitura |
+| GET | /api/history | - | Histórico (limite=200 default) |
+| POST | /api/data | Bearer | Injetar leitura |
+| POST/GET | /api/cmd | Bearer | Publicar comando MQTT |
+| GET | /api/debug/history-size | Bearer | Tamanho histórico in-memory |
 
-### 3. Frontend (Dashboard Web)
+## Fluxo de Dados
+```
+ESP32 -> MQTT Broker -> Flask (paho-mqtt) -> (persistência + histórico) -> Socket.IO -> Dashboard
+```
 
-1. Abra o arquivo `frontend/index.html` em seu navegador.
-2. O dashboard irá buscar dados do backend a cada 5 segundos.
+## Firmware Payload Exemplo
+```
+{"totalLiters": 10.2, "flowLmin": 0.8, "numeroSerie": "ABC123"}
+```
 
-### 4. Integração entre as Partes
+## Simulação Sem Hardware
+- Publicar manualmente usando algum cliente MQTT no tópico configurado.
+- Ou usar POST /api/data (JWT requerido).
 
-- O ESP32 publica dados via MQTT.
-- O backend pode ser adaptado para receber dados MQTT (usando biblioteca como `mqtt` para Node.js) ou via HTTP.
-- O frontend consome dados do backend via API REST (`/api/current`).
+## Erros Comuns
+| Problema | Causa | Ação |
+|----------|-------|------|
+| 401 em /api/data | JWT ausente | Gerar via /api/login |
+| Dashboard vazio | Sem mensagens MQTT | Enviar leitura de teste |
+| Falha MySQL | Credenciais erradas | Ajustar .env |
 
-### 5. Simulação sem Hardware
-
-- Simulação HTTP no backend (sem hardware):
-   ```powershell
-   cd backend
-   node .\tools\simulate-http.js --port 3000 --interval 1000
-   ```
-- Simule no Wokwi (ESP32 DevKit V1) com o diagrama `diagram.json` pronto:
-   - LCD I2C (0x27) no SDA=21, SCL=22
-   - RTC DS3231 no mesmo I2C (21/22)
-   - Botão IO2 (azul) simula pulsos do sensor de fluxo (ligado ao GND; firmware usa INPUT_PULLUP)
-   - Botão IO4 (verde) Start/Stop: alterna simulação e LED status
-   - LED IO13 indica status: aceso quando simulação ativa; caso contrário pisca
-   - Firmware publica em `hidrometro/leandro/dados` no broker `broker.hivemq.com:1883`
-   - Display LCD mostra Total (L) e Vazão (L/min) atualizados a cada `UPDATE_INTERVAL`
-- Controle da simulação via HTTP no firmware (Wokwi):
-   - Iniciar/ajustar: `http://<ip-do-esp>/api/sim?flow=8`  (L/min)
-   - Parar: `http://<ip-do-esp>/api/sim?off=1`
-   - Dados atuais: `http://<ip-do-esp>/api/current`
-- Ferramentas úteis: MQTT Explorer, Postman, Wokwi.
-
-Compilar para Wokwi (VS Code)
-- Instale a extensão PlatformIO IDE
-- No VS Code: PlatformIO: Build (gera `.pio/build/esp32dev/firmware.bin`)
-- F1 → Wokwi: Start Simulator
-
-### 6. Exemplos de Teste
-
-- Envie dados manualmente para o backend:
-  ```powershell
-  curl -X POST http://localhost:3000/api/data -H "Content-Type: application/json" -d "{\"totalLiters\":123.4,\"flowRate\":5.6}"
-  ```
-- Ver dashboard:
-   - http://localhost:3000/dashboard
-   - http://localhost:3000/control.html
-   - Healthcheck: http://localhost:3000/healthz
-- Veja os dados no dashboard (`frontend/index.html`).
-
-### 7. Expansão
-
-- Adicione autenticação nas APIs.
-- Integre com banco de dados online (MongoDB, Firebase).
-- Crie notificações (Telegram, Email) via backend.
-
-### 8. Referências
-
-- [Wokwi Simulator](https://wokwi.com/)
-- [HiveMQ MQTT Broker](https://www.hivemq.com/public-mqtt-broker/)
-- [Express.js](https://expressjs.com/)
-- [PubSubClient Arduino](https://pubsubclient.knolleary.net/)
+## Roadmap
+- Exportação CSV
+- Alertas (vazamento / fluxo anômalo)
+- API Keys persistentes
+- PWA offline
 
 ---
-
-Dúvidas ou sugestões? Adapte conforme sua necessidade ou peça exemplos específicos!
+Atualizado para backend Flask unificado.

@@ -1,0 +1,25 @@
+# Dockerfile.flask - Backend Flask unificado
+FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+# Instala dependências do sistema (build essentials para eventlet/paho se necessário)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copia requirements
+COPY MVC_sistema_leitura_hidrometros/MVC_sistema_leitura_hidrometros/requirements.txt ./requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copia código
+COPY MVC_sistema_leitura_hidrometros/MVC_sistema_leitura_hidrometros ./MVC_sistema_leitura_hidrometros
+COPY .env.example ./
+
+ENV FLASK_APP=MVC_sistema_leitura_hidrometros/app
+EXPOSE 5000
+
+CMD ["python", "MVC_sistema_leitura_hidrometros/MVC_sistema_leitura_hidrometros/run.py"]

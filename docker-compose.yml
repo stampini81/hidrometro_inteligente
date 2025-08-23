@@ -1,17 +1,17 @@
 services:
-  backend:
-    build: .
+  flask:
+    build:
+      context: .
+      dockerfile: Dockerfile.flask
+    env_file: .env
     ports:
-      - '${PORT:-3000}:3000'
-    environment:
-      - PORT=${PORT:-3000}
-      - MQTT_URL=${MQTT_URL:-mqtt://mosquitto:1883}
-      - MQTT_TOPIC=${MQTT_TOPIC:-hidrometro/leandro/dados}
-      - MQTT_CMD_TOPIC=${MQTT_CMD_TOPIC:-hidrometro/leandro/cmd}
-    volumes:
-      - ./backend/data:/app/backend/data
+      - "5000:5000"
     depends_on:
       - mosquitto
+    restart: unless-stopped
+    # Volumes opcionais (descomente se quiser desenvolvimento ao vivo)
+    # volumes:
+    #  - ./MVC_sistema_leitura_hidrometros:/app/MVC_sistema_leitura_hidrometros
 
   mosquitto:
     image: eclipse-mosquitto:2.0
@@ -26,3 +26,4 @@ services:
 volumes:
   mosquitto_data:
   mosquitto_log:
+# Arquivo adaptado para remover backend Node legado e adicionar serviço Flask

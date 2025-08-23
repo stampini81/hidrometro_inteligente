@@ -1,94 +1,100 @@
-# Requisitos do Projeto (Windows)
+# Requisitos do Projeto (Flask Unificado)
 
-Este documento reúne tudo o que você precisa instalar/configurar para rodar o projeto em três cenários: Docker, Wokwi (simulação) e execução local sem Docker.
+## 1) Sistema Operacional
+- Windows 10/11 (ou Linux/macOS com ajustes equivalentes)
 
-## 1) Sistema operacional
-- Windows 10 (build 19041+) ou Windows 11
-- Acesso de administrador para instalar ferramentas
+## 2) Ferramentas Essenciais
+- Git
+- Python 3.11+
+- VS Code (extensões recomendadas: Python, PlatformIO, Wokwi)
+- (Opcional) Docker Desktop + WSL2
+- Broker MQTT: usar público (HiveMQ) ou local (Mosquitto via docker-compose)
 
-## 2) Ferramentas essenciais
-- VS Code (obrigatório)
-- Git (recomendado)
-- Extensões VS Code (recomendadas):
-  - PlatformIO IDE (compilar firmware ESP32)
-  - Wokwi Simulator (simular ESP32 e periféricos)
-
-## 3) Backend (escolha 1 dos caminhos)
-
-### Caminho A — Docker (recomendado)
-- Docker Desktop for Windows (WSL2 recomendado)
-- Verificações rápidas (PowerShell):
-  - `docker --version`
-  - `docker compose version`
-  - `docker info` (Docker Desktop deve estar “Running”)
-- Portas livres: 3000 (backend), 1883/9001 (Mosquitto, se usar broker local)
-
-### Caminho B — Sem Docker (local)
-- Node.js LTS 18+ (ou 20+)
-- Verificações:
-  - `node -v` → v18.x ou v20.x
-  - `npm -v`
-- Observação: `better-sqlite3` pode exigir ferramentas de build (Windows Build Tools). O projeto funciona sem BD (histórico), mas recomendado.
-
-## 4) Firmware e Wokwi (ESP32)
-Duas formas de compilar o firmware para o Wokwi:
-
-### Opção 1 — VS Code + PlatformIO IDE (GUI)
-- Instale a extensão “PlatformIO IDE”.
-- No VS Code: PlatformIO: Build → gera `.pio/build/esp32dev/firmware.bin` e `.elf`.
-- Depois: F1 → “Wokwi: Start Simulator”.
-
-### Opção 2 — PlatformIO Core (CLI)
-- Requer Python 3.10+
-- Instale o PIO Core:
-  - `py -m pip install --user platformio`
-- Compilar:
-  - `py -m platformio run` (na raiz do projeto)
-- Depois inicie o Wokwi.
-
-### Conectividade
-- Wokwi (firmware) usa WiFi Wokwi-GUEST (sem senha) por padrão.
-- Broker MQTT público (HiveMQ) para integração com o backend: `broker.hivemq.com:1883`.
-
-## 5) Ferramentas úteis (opcional)
-- MQTT Explorer (inspecionar tópicos MQTT)
-- Postman / curl (testar APIs)
-
-## 6) Variáveis de ambiente
-O backend aceita estas variáveis (via `.env` ou compose):
-- `PORT` (padrão: 3000)
-- `MQTT_URL` (ex.: `mqtt://broker.hivemq.com:1883` ou `mqtt://mosquitto:1883`)
-- `MQTT_TOPIC` (padrão: `hidrometro/leandro/dados`)
-- `MQTT_CMD_TOPIC` (padrão: `hidrometro/leandro/cmd`)
-
-## 7) Checklists rápidos
-
-### Docker + Broker público (Wokwi)
-1. Docker Desktop em execução (Running)
-2. `.env` na raiz com:
+## 3) Dependências Python
+Arquivo: `MVC_sistema_leitura_hidrometros/MVC_sistema_leitura_hidrometros/requirements.txt`
+Instalação local:
 ```
-PORT=3000
+python -m venv .venv
+. .venv/Scripts/Activate.ps1
+pip install -r MVC_sistema_leitura_hidrometros/MVC_sistema_leitura_hidrometros/requirements.txt
+```
+
+Principais libs:
+- Flask / Flask-SocketIO
+- SQLAlchemy / Flask-Migrate
+- paho-mqtt
+- PyJWT
+- python-dotenv
+
+## 4) MQTT
+Variáveis relevantes (.env):
+```
 MQTT_URL=mqtt://broker.hivemq.com:1883
-MQTT_TOPIC=hidrometro/leandro/dados
-MQTT_CMD_TOPIC=hidrometro/leandro/cmd
+MQTT_TOPIC_DADOS=hidrometro/dados
+MQTT_TOPIC_CMD=hidrometro/cmd
 ```
-3. `docker compose up --build -d backend`
-4. Dashboard: http://localhost:3000/dashboard
+Para broker local (docker-compose):
+```
+docker compose up -d mosquitto
+```
+Portas: 1883 (TCP), 9001 (WebSockets se configurado).
 
-### Wokwi
-1. PlatformIO: Build → cria `.pio/build/esp32dev/firmware.bin`
-2. F1 → Wokwi: Start Simulator
-3. Botão IO4 (verde): Start/Stop simulação + LED IO13
-4. LCD (I2C 0x27) mostra total e vazão
+## 5) Banco de Dados
+Default: SQLite arquivo (instância local). Para MySQL configure no .env:
+```
+DB_ENGINE=mysql
+DB_HOST=localhost
+DB_PORT=3306
+DB_USER=usuario
+DB_PASSWORD=senha
+DB_NAME=hidrometro
+```
+Criar migrações após alterar modelos:
+```
+flask --app MVC_sistema_leitura_hidrometros/MVC_sistema_leitura_hidrometros/app db migrate -m "alter"
+flask --app MVC_sistema_leitura_hidrometros/MVC_sistema_leitura_hidrometros/app db upgrade
+```
 
-### Local sem Docker
-1. `cd backend && npm install`
-2. `setx PORT 3000` (ou `$env:PORT='3000'` para sessão atual)
-3. `npm start`
-4. Dashboard: http://localhost:3000/dashboard
+## 6) Firmware / Wokwi
+- Editar `firmware/config.h` (SSID/WiFi, tópicos se mudar)
+- Payload JSON publicado conforme exemplo: `{ "totalLiters": 12.3, "flowLmin": 0.7, "numeroSerie": "ABC123" }`
+- Simulação Wokwi: abra `diagram.json`.
 
-## 8) Solução de problemas
-- Wokwi erro “firmware.bin not found”: rode PlatformIO: Build. Verifique se o arquivo existe em `.pio/build/esp32dev/`.
-- Docker avisa sobre `config.json` com caractere ‘ï’: remova o BOM do arquivo `C:\Users\SEU_USUARIO\.docker\config.json`.
-- `docker` não reconhecido: abra Docker Desktop e reinicie o PowerShell; verifique PATH.
-- Sem dados no dashboard: confira broker/tópico no `.env` e no firmware (ambos devem usar `hidrometro/leandro/dados`).
+## 7) Execução Rápida (Docker)
+```
+cp .env.example .env
+# Ajustar variáveis
+docker compose up -d --build
+```
+Acessar: http://localhost:5000/dashboard
+
+## 8) Execução Local (Sem Docker)
+```
+python -m venv .venv
+. .venv/Scripts/Activate.ps1
+pip install -r MVC_sistema_leitura_hidrometros/MVC_sistema_leitura_hidrometros/requirements.txt
+python MVC_sistema_leitura_hidrometros/MVC_sistema_leitura_hidrometros/run.py
+```
+
+## 9) Testes Rápidos
+```
+curl -X GET http://localhost:5000/healthz
+curl -X POST http://localhost:5000/api/login -H "Content-Type: application/json" -d '{"username":"admin","password":"admin"}'
+```
+
+## 10) Solução de Problemas
+| Sintoma | Causa | Solução |
+|---------|-------|---------|
+| Sem dados | Firmware não publica | Verificar tópico / broker |
+| 401 em POST | Sem token | Obter via /api/login |
+| Socket falha | Portas bloqueadas | Liberar 5000 / firewall |
+| MySQL erro | Credenciais erradas | Ajustar .env |
+
+## 11) Próximos (Roadmap)
+- Export CSV
+- Alertas e regras
+- API Keys / refresh tokens
+- PWA offline
+
+---
+Documento atualizado para versão Flask unificada.

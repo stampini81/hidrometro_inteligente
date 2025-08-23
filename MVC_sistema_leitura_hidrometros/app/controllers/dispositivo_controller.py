@@ -1,7 +1,34 @@
 from app import app
-from flask import render_template, request, redirect, url_for, flash
+from flask import render_template, request, redirect, url_for, flash, jsonify
 from app.services import dispositivo_service, cliente_service # Importa cliente_service para listar clientes
 from app.models.dispositivo_model import Dispositivo # Importa o modelo Dispositivo para uso no template
+from app.models.dispositivo_model import Leitura
+from app import db
+
+@app.route('/api/clientes/<int:cliente_id>/dispositivos/current')
+def api_cliente_dispositivos_current(cliente_id):
+    """Retorna para cada dispositivo do cliente a última leitura (se houver)."""
+    cliente = cliente_service.buscar_cliente_por_id(cliente_id) if hasattr(cliente_service, 'buscar_cliente_por_id') else None
+    if not cliente:
+        return jsonify({'error': 'cliente_not_found'}), 404
+    dispositivos = Dispositivo.query.filter_by(cliente_id=cliente_id).all()
+    result = []
+    for d in dispositivos:
+        leitura = (Leitura.query.filter_by(dispositivo_id=d.id_dispositivo)
+                   .order_by(Leitura.data_hora.desc()).first())
+        result.append({
+            'dispositivo_id': d.id_dispositivo,
+            'numero_serie': d.numero_serie,
+            'modelo': d.modelo,
+            'status': d.status,
+            'ultima_leitura': {
+                'data_hora': leitura.data_hora.isoformat() if leitura else None,
+                'consumo_litros': float(leitura.consumo_litros) if leitura and leitura.consumo_litros is not None else None,
+                'total_liters': float(leitura.total_liters) if leitura and leitura.total_liters is not None else None,
+                'flow_lmin': float(leitura.flow_lmin) if leitura and leitura.flow_lmin is not None else None,
+            } if leitura else None
+        })
+    return jsonify({'cliente_id': cliente_id, 'dispositivos': result})
 
 @app.route('/dispositivos')
 def listar_dispositivos():

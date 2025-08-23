@@ -134,6 +134,11 @@ def _normalize_payload(obj):
     serial = o.get('numeroSerie') or o.get('serial') or o.get('numero_serie')
     if serial:
         serial = str(serial).strip().upper()
+    else:
+        # fallback serial default se configurado
+        default_serial = app.config.get('DEFAULT_DEVICE_SERIAL')
+        if default_serial:
+            serial = str(default_serial).strip().upper()
     return { 'ts': int(ts), 'totalLiters': float(total), 'flowLmin': float(flow), 'numero_serie': serial }
 
 # MQTT callbacks

@@ -49,6 +49,8 @@ class Config:
     MQTT_URL = os.environ.get('MQTT_URL', 'mqtt://broker.hivemq.com:1883')
     MQTT_TOPIC_DADOS = os.environ.get('MQTT_TOPIC_DADOS', 'hidrometro/leandro/dados')
     MQTT_TOPIC_CMD = os.environ.get('MQTT_TOPIC_CMD', 'hidrometro/leandro/cmd')
+    # Serial padrão opcional (usado se payload MQTT não trouxer numeroSerie)
+    DEFAULT_DEVICE_SERIAL = os.environ.get('DEFAULT_DEVICE_SERIAL')
 
     # Limite de histórico em memória
     HISTORY_LIMIT = int(os.environ.get('HISTORY_LIMIT', '1000'))

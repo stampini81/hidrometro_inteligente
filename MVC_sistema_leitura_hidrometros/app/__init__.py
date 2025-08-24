@@ -332,6 +332,20 @@ def api_history():
         data = list(_history)[-limit:]
     return jsonify({'history': data})
 
+@app.route('/api/current')
+def api_current():
+    # Último dado recebido em memória (sem consulta ao banco)
+    with _hist_lock:
+        if not _last_data and _history:
+            # fallback: pega último do histórico
+            tail = _history[-1]
+            return jsonify({
+                'ts': tail.get('ts'),
+                'totalLiters': tail.get('totalLiters'),
+                'flowLmin': tail.get('flowLmin')
+            })
+        return jsonify(_last_data or {})
+
 @app.route('/api/alerts')
 def api_alerts_list():
     """Lista alertas recentes (não resolve). Query params: limit, unresolved=1"""

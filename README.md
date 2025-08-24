@@ -54,6 +54,11 @@ Leituras de consumo de água (litros acumulados e vazão instantânea) publicada
 - Colunas total_liters e flow_lmin no modelo Leitura.
 - Suporte a MySQL (via variáveis) com fallback SQLite.
 - .env.example criado.
+- Página de login web (/login) e proteção de rotas de interface.
+- Página Tempo Real por cliente: /cliente/<id>/tempo-real mostrando dispositivos + alertas.
+- Vínculo automático de dispositivo padrão a cliente (DEFAULT_DEVICE_SERIAL & DEFAULT_DEVICE_CLIENT_ID).
+- Detecção de vazamento com agregação temporal (LEAK_FLOW_THRESHOLD + LEAK_MIN_SECONDS) e persistência de alertas.
+- Endpoints de alertas: /api/alerts, /api/alerts/:id/resolve, /api/alerts/clear-temporary.
 
 ## Configuração (.env)
 Copie `.env.example` para `.env` e ajuste:
@@ -65,6 +70,12 @@ MQTT_TOPIC_DADOS=hidrometro/dados
 MQTT_TOPIC_CMD=hidrometro/cmd
 SECRET_KEY=alterar-para-chave-forte
 HISTORY_LIMIT=1000
+# Dispositivo / cliente padrão para vincular leituras simuladas
+DEFAULT_DEVICE_SERIAL=SIM123
+DEFAULT_DEVICE_CLIENT_ID=1
+# Alertas de vazamento
+LEAK_FLOW_THRESHOLD=2.5      # L/min mínimo
+LEAK_MIN_SECONDS=10          # duração mínima contínua acima do limiar
 ```
 
 ## Migrações
@@ -101,6 +112,80 @@ docker build -t hidrometro-flask -f Dockerfile.flask .
 docker run --env-file .env -p 5000:5000 hidrometro-flask
 ```
 
+### Passo a passo exato (Docker + Postgres + Mosquitto)
+1. Criar/copiar arquivo `.env` contendo ao menos:
+```
+DB_ENGINE=postgres
+POSTGRES_HOST=postgres
+POSTGRES_PORT=5432
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
+POSTGRES_DB=hidrometro
+MQTT_URL=mqtt://mosquitto:1883
+MQTT_TOPIC_DADOS=hidrometro/leandro/dados
+MQTT_TOPIC_CMD=hidrometro/leandro/cmd
+SECRET_KEY=gerar-uma-chave
+DEFAULT_DEVICE_SERIAL=SIM123
+DEFAULT_DEVICE_CLIENT_ID=1
+LEAK_FLOW_THRESHOLD=0.5
+LEAK_MIN_SECONDS=10
+AUTO_MIGRATE=1
+```
+2. Subir serviços:
+```
+docker compose up -d --build
+```
+3. Verificar containers:
+```
+docker compose ps
+```
+4. Acompanhar logs do Flask (confirme criação do admin, vínculo dispositivo e assinatura MQTT):
+```
+docker compose logs -f flask
+```
+5. Acessar a aplicação: http://localhost:5000/login (usuário admin / senha definida em ADMIN_PASSWORD ou 'admin').
+6. Ir para lista de clientes e confirmar que o Cliente ID=1 existe; se não existir, criar um cliente manualmente e ajustar DEFAULT_DEVICE_CLIENT_ID ou recriar.
+7. Acessar a página Tempo Real do cliente 1:
+```
+http://localhost:5000/cliente/1/tempo-real
+```
+8. Iniciar simulador (ESP32 / Wokwi) publicando JSON em `hidrometro/leandro/dados`:
+```
+{"totalLiters": 10.2, "flowLmin": 0.8, "numeroSerie": "SIM123"}
+```
+9. Validar que a linha do dispositivo aparece/atualiza e que alertas surgem se a vazão ultrapassar o limiar pelo tempo mínimo.
+
+### Verificação rápida de vínculo de consumo ao Cliente ID=1
+Use estes passos para garantir que os dados recebidos do simulador (serial SIM123) estão sendo associados ao cliente correto:
+1. Conferir no log de inicialização a mensagem:
+```
+[INIT] Dispositivo padrão criado e vinculado ao cliente 1
+```
+ou
+```
+[INIT] Dispositivo padrão atualizado para cliente 1
+```
+2. Emitir uma leitura MQTT (ou via POST /api/data) com `numeroSerie` = SIM123.
+3. Verificar no banco (exemplo usando docker exec + psql):
+```
+docker compose exec postgres psql -U postgres -d hidrometro -c "SELECT l.id_leitura, d.numero_serie, d.cliente_id, l.total_liters, l.flow_lmin, l.data_hora FROM \"Leitura\" l JOIN \"Dispositivo\" d ON d.id_dispositivo=l.dispositivo_id ORDER BY l.id_leitura DESC LIMIT 5;"
+```
+Saída esperada: linhas com numero_serie = SIM123 e cliente_id = 1.
+4. Alternativa via API (últimos dados em memória):
+```
+curl.exe http://localhost:5000/api/current
+```
+5. Página Tempo Real (`/cliente/1/tempo-real`) deve mostrar o dispositivo SIM123 atualizando Total (L) e Vazão.
+6. (Opcional) Listar alertas para confirmar persistência:
+```
+curl.exe http://localhost:5000/api/alerts?unresolved=1
+```
+
+Se o cliente não estiver correto, ajustar variáveis `DEFAULT_DEVICE_SERIAL` e `DEFAULT_DEVICE_CLIENT_ID`, remover o container flask para recriar (ou ajustar no banco) e subir novamente:
+```
+docker compose restart flask
+```
+
 ## Execução Local (Sem Docker)
 ```
 python -m venv .venv
@@ -110,6 +195,11 @@ pip install -r MVC_sistema_leitura_hidrometros/requirements.txt
 python MVC_sistema_leitura_hidrometros/run.py
 ```
 Acessar http://localhost:5000/dashboard
+### Verificação local (similar):
+1. Definir `.env` com DEFAULT_DEVICE_SERIAL e DEFAULT_DEVICE_CLIENT_ID.
+2. Rodar a aplicação.
+3. Publicar leitura usando MQTT broker público ou local.
+4. Conferir leitura persistida conforme comandos SQL (para SQLite, abrir `instance/app.db` com um viewer ou usar `sqlite3`).
 
 ## Login / Token
 ```
@@ -151,6 +241,8 @@ curl.exe -X POST http://localhost:5000/api/cmd -H "Authorization: Bearer $token"
 - Controle e envio de comandos MQTT.
 - JWT para endpoints de escrita.
 - Migrações com Flask-Migrate.
+- Página Tempo Real por cliente (leituras + painel de alertas persistidos / tempo real).
+- Persistência e resolução de alertas de vazamento.
 
 ## Tecnologias
 - Flask, Flask-SocketIO, SQLAlchemy, Flask-Migrate, PyJWT, paho-mqtt.
@@ -188,6 +280,33 @@ Use `diagram.json` em https://wokwi.com/ e ajuste tópicos no código.
 | POST | /api/data | Bearer (admin/user) | Injetar leitura manual |
 | POST/GET | /api/cmd | Bearer (admin) | Enviar comando MQTT |
 | GET | /api/debug/history-size | Bearer (admin) | Tamanho do histórico in-memory |
+| GET | /api/alerts?limit=50&unresolved=1 | - | Lista alertas (filtra não resolvidos) |
+| POST | /api/alerts/<id>/resolve | - | Marca alerta como resolvido |
+| POST | /api/alerts/clear-temporary | - | Limpa estado temporário de detecção (não apaga registros) |
+
+### Uso Rápido dos Endpoints de Alertas
+
+Listar últimos 20 alertas:
+```
+curl.exe http://localhost:5000/api/alerts?limit=20
+```
+
+Listar apenas alertas não resolvidos:
+```
+curl.exe http://localhost:5000/api/alerts?unresolved=1
+```
+
+Resolver (fechar) um alerta com id 5:
+```
+curl.exe -X POST http://localhost:5000/api/alerts/5/resolve
+```
+
+Limpar estado temporário de detecção (não remove registros do banco, apenas reinicia o monitor em memória):
+```
+curl.exe -X POST http://localhost:5000/api/alerts/clear-temporary
+```
+
+As páginas de Tempo Real por cliente carregam automaticamente os alertas persistidos e escutam os eventos em tempo real via Socket.IO (evento `alert`).
 
 ## Simulação de Dados Sem Hardware
 Crie script que faça POST periódico em /api/data ou publique no tópico MQTT configurado.
@@ -210,11 +329,12 @@ Deque em memória limitado por HISTORY_LIMIT + persistência Leitura na base. Aj
 | Socket não atualiza | Bloqueio eventlet | Reinstalar dependências / checar porta |
 
 ## Roadmap / Próximos Passos
-- Persistência avançada (PostgreSQL / Timeseries).
-- API Keys e refresh tokens.
-- Exportação CSV / filtros.
-- Regras de alerta e notificações.
-- PWA (manifest + service worker).
+- Persistência avançada em banco otimizado para séries temporais (ex: TimescaleDB).
+- API Keys / refresh tokens e expiração configurável.
+- Exportação CSV / filtros avançados (intervalo de datas, por cliente / dispositivo).
+- Notificações externas (email, webhook) para alertas.
+- Painel avançado de gestão de alertas (busca, paginação, filtro por status, exportação).
+- PWA (manifest + service worker) para experiência mobile.
 
 ---
 Contribuições são bem-vindas.

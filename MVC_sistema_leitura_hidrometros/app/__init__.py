@@ -26,6 +26,7 @@ socketio = SocketIO(app, cors_allowed_origins='*')
 # Import models
 from app.models import cliente_model, dispositivo_model, faturamento_model, usuario_model
 from app.models.dispositivo_model import Dispositivo, Leitura
+from app.models.alerta_model import Alerta
 from app.models.usuario_model import Usuario
 from app.models.cliente_model import Cliente
 
@@ -33,6 +34,8 @@ from app.models.cliente_model import Cliente
 _history = deque(maxlen=app.config.get('HISTORY_LIMIT', 1000))
 _last_data = {}
 _hist_lock = Lock()
+# Estado de detecção de vazamento por serial
+_leak_state = {}
 
 # Config auth
 _JWT_SECRET = app.config.get('SECRET_KEY', 'dev')
@@ -190,38 +193,72 @@ def _persist_leitura(data):
     except Exception:
         db.session.rollback()
 
-def _on_mqtt_message(client, userdata, msg):
-    # Log bruto (limitando tamanho para evitar flood)
+def _process_leak_detection(data):
+    """Aplica regra de detecção de vazamento com agregação temporal e emite/persiste alertas.
+
+    Mantém estado em _leak_state indexado por serial.
+    """
     try:
-        raw = msg.payload.decode('utf-8', errors='replace')
+        thr = float(app.config.get('LEAK_FLOW_THRESHOLD', 0.0) or 0.0)
+        if thr <= 0:
+            return
+        min_secs = float(app.config.get('LEAK_MIN_SECONDS', 0) or 0)
+        serial = data.get('numero_serie') or 'UNKNOWN'
+        flow = data.get('flowLmin') or 0.0
+        now_ts = data['ts'] / 1000.0
+        st = _leak_state.get(serial)
+        if flow >= thr:
+            if not st:
+                st = {
+                    'start_ts': now_ts,
+                    'last_ts': now_ts,
+                    'peak_flow': flow,
+                    'total_liters_at_start': data.get('totalLiters'),
+                    'alert_sent': False
+                }
+                _leak_state[serial] = st
+            else:
+                st['last_ts'] = now_ts
+                if flow > st['peak_flow']:
+                    st['peak_flow'] = flow
+            duration = st['last_ts'] - st['start_ts']
+            if duration >= min_secs and not st['alert_sent']:
+                dispositivo_id = None
+                disp = Dispositivo.query.filter_by(numero_serie=serial).first()
+                if disp:
+                    dispositivo_id = disp.id_dispositivo
+                alert = Alerta(
+                    dispositivo_id=dispositivo_id,
+                    serial=serial,
+                    tipo='leak',
+                    message=f"Vazamento: fluxo >= {thr:.2f} L/min por {duration:.1f}s (pico {st['peak_flow']:.2f} L/min)",
+                    threshold=thr,
+                    flow_lmin=flow,
+                    total_liters=data.get('totalLiters'),
+                    duration_seconds=duration
+                )
+                try:
+                    db.session.add(alert)
+                    db.session.commit()
+                except Exception:
+                    db.session.rollback()
+                payload_alert = {
+                    'id': alert.id_alerta if 'alert' in locals() and alert.id_alerta else None,
+                    'type': 'leak',
+                    'message': alert.message if 'alert' in locals() else f"Vazamento detectado (serial {serial})",
+                    'serial': serial,
+                    'flowLmin': flow,
+                    'threshold': thr,
+                    'duration': duration,
+                    'totalLiters': data.get('totalLiters'),
+                    'ts': int(now_ts*1000)
+                }
+                socketio.emit('alert', payload_alert)
+                st['alert_sent'] = True
+        else:
+            if st:  # fluxo caiu abaixo do limiar => reset estado
+                _leak_state.pop(serial, None)
     except Exception:
-        raw = '<decode-error>'
-    print(f"[MQTT] RECEBIDO topic={msg.topic} bytes={len(msg.payload)} raw={raw[:200]}")
-    try:
-        payload = json.loads(raw)
-    except Exception as e:
-        print('[MQTT] payload inválido (JSON parse falhou):', e)
-        return
-    data = _normalize_payload(payload)
-    with _hist_lock:
-        _last_data.update(data)
-        _history.append({'ts': data['ts'], 'totalLiters': data['totalLiters'], 'flowLmin': data['flowLmin']})
-    _persist_leitura(data)
-    print(f"[MQTT] NORMALIZADO ts={data['ts']} total={data['totalLiters']} flow={data['flowLmin']} serial={data.get('numero_serie')}")
-    socketio.emit('data', data)
-    # Detecção simples de vazamento: flow acima do limiar configurado por qualquer leitura
-    try:
-        thr = float(app.config.get('LEAK_FLOW_THRESHOLD', 0.0))
-        if data['flowLmin'] is not None and data['flowLmin'] >= thr and thr > 0:
-            socketio.emit('alert', {
-                'type': 'leak',
-                'message': f"Possível vazamento: vazão {data['flowLmin']:.2f} L/min >= limiar {thr:.2f}",
-                'flowLmin': data['flowLmin'],
-                'totalLiters': data['totalLiters'],
-                'serial': data.get('numero_serie'),
-                'ts': data['ts']
-            })
-    except Exception as _e:
         pass
 
 # Inicializa MQTT
@@ -244,10 +281,26 @@ def init_mqtt():
     except Exception as e:
         print('[MQTT] Falha ao conectar', e)
 
-@app.route('/api/current')
-def api_current():
+def _on_mqtt_message(client, userdata, msg):
+    # Log bruto (limitando tamanho para evitar flood)
+    try:
+        raw = msg.payload.decode('utf-8', errors='replace')
+    except Exception:
+        raw = '<decode-error>'
+    print(f"[MQTT] RECEBIDO topic={msg.topic} bytes={len(msg.payload)} raw={raw[:200]}")
+    try:
+        payload = json.loads(raw)
+    except Exception as e:
+        print('[MQTT] payload inválido (JSON parse falhou):', e)
+        return
+    data = _normalize_payload(payload)
     with _hist_lock:
-        return jsonify(_last_data)
+        _last_data.update(data)
+        _history.append({'ts': data['ts'], 'totalLiters': data['totalLiters'], 'flowLmin': data['flowLmin']})
+    _persist_leitura(data)
+    print(f"[MQTT] NORMALIZADO ts={data['ts']} total={data['totalLiters']} flow={data['flowLmin']} serial={data.get('numero_serie')}")
+    socketio.emit('data', data)
+    _process_leak_detection(data)
 
 @app.route('/api/history')
 def api_history():
@@ -255,6 +308,35 @@ def api_history():
     with _hist_lock:
         data = list(_history)[-limit:]
     return jsonify({'history': data})
+
+@app.route('/api/alerts')
+def api_alerts_list():
+    """Lista alertas recentes (não resolve). Query params: limit, unresolved=1"""
+    limit = int(request.args.get('limit', 50))
+    unresolved = request.args.get('unresolved') == '1'
+    q = Alerta.query
+    if unresolved:
+        q = q.filter(Alerta.resolved_at.is_(None))
+    alerts = q.order_by(Alerta.detected_at.desc()).limit(limit).all()
+    return jsonify({'alerts': [a.as_dict() for a in alerts]})
+
+@app.route('/api/alerts/<int:alert_id>/resolve', methods=['POST'])
+def api_alert_resolve(alert_id):
+    a = Alerta.query.get(alert_id)
+    if not a:
+        return jsonify({'error': 'not found'}), 404
+    if a.resolve():
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback(); return jsonify({'error':'db error'}), 500
+    return jsonify({'alert': a.as_dict()})
+
+@app.route('/api/alerts/clear-temporary', methods=['POST'])
+def api_alerts_clear_temp():
+    """Limpa alertas em memória enviados (estado de leak) - não altera registros persistidos."""
+    _leak_state.clear()
+    return jsonify({'status':'cleared'})
 
 @app.route('/api/data', methods=['POST'])
 @require_auth

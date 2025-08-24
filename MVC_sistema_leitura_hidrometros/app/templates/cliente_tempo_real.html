@@ -3,6 +3,11 @@
 <h2>Tempo Real - {{ cliente.nome }}</h2>
 <div id="devices" class="card" style="padding:1rem;background:#fff;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,.1);">
   <div id="status" style="margin-bottom:1rem;font-size:0.9rem;color:#555;">Conectando...</div>
+  <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem;flex-wrap:wrap;">
+    <button id="btnClearAlerts" style="background:#555;color:#fff;border:none;padding:6px 10px;border-radius:4px;cursor:pointer;font-size:.8rem;">Limpar Alertas</button>
+    <button id="btnReloadAlerts" style="background:#1976d2;color:#fff;border:none;padding:6px 10px;border-radius:4px;cursor:pointer;font-size:.8rem;">Recarregar Alertas</button>
+    <span style="font-size:.75rem;color:#666;">(persistidos no banco e exibidos abaixo)</span>
+  </div>
   <div id="alerts" style="margin-bottom:1rem;"></div>
   <table style="width:100%;border-collapse:collapse;">
     <thead>
@@ -24,18 +29,42 @@ const statusEl = document.getElementById('status');
 const socket = io();
 let dispositivos = {}; // key: numero_serie
 let alertsDiv = document.getElementById('alerts');
-function pushAlert(text){
+function alertElement(a){
   const el = document.createElement('div');
-  el.textContent = text;
-  el.style.background = '#c62828';
+  el.style.background = a.resolved_at ? '#2e7d32' : '#c62828';
   el.style.color = '#fff';
   el.style.padding = '6px 10px';
   el.style.borderRadius = '4px';
   el.style.marginBottom = '4px';
-  el.style.fontSize = '0.85rem';
+  el.style.fontSize = '0.75rem';
+  el.style.display='flex';
+  el.style.justifyContent='space-between';
+  el.style.alignItems='center';
+  const span = document.createElement('span');
+  span.textContent = `[${a.serial||'-'}] ${a.message}`;
+  el.appendChild(span);
+  if(!a.resolved_at){
+    const btn = document.createElement('button');
+    btn.textContent='Resolver';
+    btn.style.background='rgba(255,255,255,.15)';
+    btn.style.color='#fff';
+    btn.style.border='none';
+    btn.style.padding='4px 8px';
+    btn.style.borderRadius='4px';
+    btn.style.cursor='pointer';
+    btn.onclick = async()=>{
+      try{ const r= await fetch(`/api/alerts/${a.id}/resolve`, {method:'POST'}); if(r.ok){ await carregarAlertas(); } }catch(e){console.error(e);} };
+    el.appendChild(btn);
+  }
+  return el;
+}
+function pushAlertObj(a){
+  const el = alertElement(a);
   alertsDiv.prepend(el);
-  // Limita quantidade
-  while(alertsDiv.children.length > 5){ alertsDiv.removeChild(alertsDiv.lastChild); }
+  while(alertsDiv.children.length>20){ alertsDiv.removeChild(alertsDiv.lastChild); }
+}
+function pushAlertText(text){
+  pushAlertObj({message:text, serial: '', id: 'temp-'+Date.now()});
 }
 
 function render(){
@@ -83,12 +112,24 @@ socket.on('data', payload => {
   render();
 });
 
-socket.on('alert', a => {
-  if(a.type === 'leak'){
-    pushAlert(a.message);
-  }
-});
+socket.on('alert', a => { if(a.type==='leak'){ pushAlertObj(a); }});
+
+async function carregarAlertas(){
+  try{
+  const r = await fetch('/api/alerts?limit=50');
+  if(!r.ok) { return; }
+  const data = await r.json();
+    alertsDiv.innerHTML='';
+    (data.alerts||[]).forEach(a=> alertsDiv.appendChild(alertElement(a)) );
+  }catch(e){console.error(e);}
+}
+
+document.getElementById('btnClearAlerts').onclick = async()=>{
+  try{ await fetch('/api/alerts/clear-temporary',{method:'POST'}); }catch(e){console.error(e);}finally{ /* somente limpa estado em memória */ }
+};
+document.getElementById('btnReloadAlerts').onclick = ()=>carregarAlertas();
 
 carregarIniciais();
+carregarAlertas();
 </script>
 {% endblock %}

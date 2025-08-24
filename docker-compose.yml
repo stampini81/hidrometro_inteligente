@@ -7,15 +7,17 @@ services:
     environment:
       - DEBUG_AUTH=1
       - AUTO_MIGRATE=1
+      - DEFAULT_DEVICE_SERIAL=SIMULADOR001
+      - DEFAULT_DEVICE_CLIENT_ID=1
     depends_on:
       - mosquitto
       - postgres
     ports:
       - "5000:5000"
     restart: unless-stopped
-    # Volumes opcionais (descomente se quiser desenvolvimento ao vivo)
-    # volumes:
-    #  - ./MVC_sistema_leitura_hidrometros:/app/MVC_sistema_leitura_hidrometros
+    # Volumes para desenvolvimento ao vivo (templates, código, etc.)
+    volumes:
+      - ./MVC_sistema_leitura_hidrometros:/app/MVC_sistema_leitura_hidrometros
 
   mosquitto:
     image: eclipse-mosquitto:2.0

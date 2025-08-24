@@ -171,27 +171,29 @@ def _on_mqtt_connect(client, userdata, flags, rc):
         print('[MQTT] Erro subscribe', e)
 
 def _persist_leitura(data):
-    dispositivo_id = None
-    serial = data.get('numero_serie')
-    if serial:
-        disp = Dispositivo.query.filter_by(numero_serie=serial).first()
-        if disp:
-            dispositivo_id = disp.id_dispositivo
-    if dispositivo_id is None:
-        # Sem dispositivo correspondente: ignorar persistência para evitar FK inválida
-        return
-    try:
-        leitura = Leitura(
-            dispositivo_id=dispositivo_id,
-            data_hora=datetime.now(timezone.utc),
-            consumo_litros=data['totalLiters'],
-            total_liters=data['totalLiters'],
-            flow_lmin=data['flowLmin']
-        )
-        db.session.add(leitura)
-        db.session.commit()
-    except Exception:
-        db.session.rollback()
+    # Garante contexto mesmo se chamado a partir de thread MQTT
+    with app.app_context():
+        dispositivo_id = None
+        serial = data.get('numero_serie')
+        if serial:
+            disp = Dispositivo.query.filter_by(numero_serie=serial).first()
+            if disp:
+                dispositivo_id = disp.id_dispositivo
+        if dispositivo_id is None:
+            # Sem dispositivo correspondente: ignorar persistência para evitar FK inválida
+            return
+        try:
+            leitura = Leitura(
+                dispositivo_id=dispositivo_id,
+                data_hora=datetime.now(timezone.utc),
+                consumo_litros=data['totalLiters'],
+                total_liters=data['totalLiters'],
+                flow_lmin=data['flowLmin']
+            )
+            db.session.add(leitura)
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
 
 def _process_leak_detection(data):
     """Aplica regra de detecção de vazamento com agregação temporal e emite/persiste alertas.
@@ -282,30 +284,51 @@ def init_mqtt():
         print('[MQTT] Falha ao conectar', e)
 
 def _on_mqtt_message(client, userdata, msg):
-    # Log bruto (limitando tamanho para evitar flood)
-    try:
-        raw = msg.payload.decode('utf-8', errors='replace')
-    except Exception:
-        raw = '<decode-error>'
-    print(f"[MQTT] RECEBIDO topic={msg.topic} bytes={len(msg.payload)} raw={raw[:200]}")
-    try:
-        payload = json.loads(raw)
-    except Exception as e:
-        print('[MQTT] payload inválido (JSON parse falhou):', e)
-        return
-    data = _normalize_payload(payload)
-    with _hist_lock:
-        _last_data.update(data)
-        _history.append({'ts': data['ts'], 'totalLiters': data['totalLiters'], 'flowLmin': data['flowLmin']})
-    _persist_leitura(data)
-    print(f"[MQTT] NORMALIZADO ts={data['ts']} total={data['totalLiters']} flow={data['flowLmin']} serial={data.get('numero_serie')}")
-    socketio.emit('data', data)
-    _process_leak_detection(data)
+    # Garante contexto de aplicação para operações ORM
+    with app.app_context():
+        # Log bruto (limitando tamanho para evitar flood)
+        try:
+            raw = msg.payload.decode('utf-8', errors='replace')
+        except Exception:
+            raw = '<decode-error>'
+        print(f"[MQTT] RECEBIDO topic={msg.topic} bytes={len(msg.payload)} raw={raw[:200]}")
+        try:
+            payload = json.loads(raw)
+        except Exception as e:
+            print('[MQTT] payload inválido (JSON parse falhou):', e)
+            return
+        data = _normalize_payload(payload)
+        with _hist_lock:
+            _last_data.update(data)
+            _history.append({'ts': data['ts'], 'totalLiters': data['totalLiters'], 'flowLmin': data['flowLmin']})
+        _persist_leitura(data)
+        print(f"[MQTT] NORMALIZADO ts={data['ts']} total={data['totalLiters']} flow={data['flowLmin']} serial={data.get('numero_serie')}")
+        socketio.emit('data', data)
+        _process_leak_detection(data)
 
 @app.route('/api/history')
 def api_history():
     limit = int(request.args.get('limit', 200))
+    # Se histórico em memória estiver vazio (ex: após restart), carrega últimas leituras do banco
     with _hist_lock:
+        if not _history:
+            try:
+                rows = (Leitura.query.order_by(Leitura.data_hora.desc())
+                        .limit(limit)
+                        .all())
+                # Inserir em ordem cronológica
+                for r in reversed(rows):
+                    try:
+                        ts = int(r.data_hora.timestamp()*1000)
+                    except Exception:
+                        ts = None
+                    _history.append({
+                        'ts': ts,
+                        'totalLiters': float(r.total_liters) if r.total_liters is not None else None,
+                        'flowLmin': float(r.flow_lmin) if r.flow_lmin is not None else None
+                    })
+            except Exception as e:
+                print('[HISTORY] Falha ao carregar histórico do banco:', e)
         data = list(_history)[-limit:]
     return jsonify({'history': data})
 
@@ -392,6 +415,24 @@ def debug_history_size():
 @socketio.on('connect')
 def on_connect():
     with _hist_lock:
+        # Carrega último histórico do banco se memória vazia
+        if not _history:
+            try:
+                rows = (Leitura.query.order_by(Leitura.data_hora.desc())
+                        .limit(200)
+                        .all())
+                for r in reversed(rows):
+                    try:
+                        ts = int(r.data_hora.timestamp()*1000)
+                    except Exception:
+                        ts = None
+                    _history.append({
+                        'ts': ts,
+                        'totalLiters': float(r.total_liters) if r.total_liters is not None else None,
+                        'flowLmin': float(r.flow_lmin) if r.flow_lmin is not None else None
+                    })
+            except Exception as e:
+                print('[HISTORY] Falha ao carregar histórico (socket connect):', e)
         if _history:
             socketio.emit('history:init', list(_history)[-200:])
         if _last_data:
@@ -423,7 +464,6 @@ with app.app_context():
             print(f'  {methods:15s} {r[1]}')
     except Exception as _e:
         pass
-    init_mqtt()
     # Garantir vinculo do dispositivo padrão a um cliente específico se configurado
     try:
         default_serial = app.config.get('DEFAULT_DEVICE_SERIAL')
@@ -451,6 +491,8 @@ with app.app_context():
                     print('[INIT] Cliente padrão configurado não encontrado: ID', client_id_cfg)
     except Exception as e:
         print('[INIT] Erro ao garantir vínculo dispositivo padrão:', e)
+    # Inicializa MQTT somente após tentar criar/atualizar dispositivo padrão
+    init_mqtt()
 
 # Endpoint de debug opcional para inspecionar usuários e validar senha padrão
 if os.environ.get('DEBUG_AUTH') == '1':

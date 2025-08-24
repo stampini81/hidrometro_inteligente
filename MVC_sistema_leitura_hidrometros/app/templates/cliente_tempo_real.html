@@ -21,12 +21,25 @@
     <tbody id="tbody"></tbody>
   </table>
 </div>
-<script src="/socket.io/socket.io.js"></script>
+<!-- Carrega socket.io via CDN. Se ainda tentar buscar /socket.io/socket.io.js (cache antigo), força fallback -->
+<script>
+if(!window.io){
+  const s=document.createElement('script');
+  s.src='https://cdn.socket.io/4.7.5/socket.io.min.js';
+  s.crossOrigin='anonymous';
+  s.referrerPolicy='no-referrer';
+  s.onload=()=>{ console.log('[tempo-real] socket.io CDN carregado'); initAfterSocket(); };
+  s.onerror=()=>{ console.error('[tempo-real] Falha ao carregar socket.io CDN'); };
+  document.head.appendChild(s);
+} else {
+  initAfterSocket();
+}
+</script>
 <script>
 const clienteId = parseInt("{{ cliente.id_cliente }}", 10);
 const tbody = document.getElementById('tbody');
 const statusEl = document.getElementById('status');
-const socket = io();
+let socket = null; // será inicializado após carregamento do script socket.io
 let dispositivos = {}; // key: numero_serie
 let alertsDiv = document.getElementById('alerts');
 function alertElement(a){
@@ -95,24 +108,30 @@ async function carregarIniciais(){
   } catch(e){ console.error(e); }
 }
 
-socket.on('connect', ()=> statusEl.textContent='Conectado');
-socket.on('disconnect', ()=> statusEl.textContent='Desconectado');
+function startRealtime(){
+  try {
+    socket = io({ transports:['websocket','polling'], timeout:5000 });
+  } catch(e){ console.error('Erro inicializando io()', e); statusEl.textContent='Erro inicializando socket'; return; }
+  socket.on('connect', ()=> { statusEl.textContent='Conectado'; });
+  socket.on('connect_error', (err)=> { console.error('connect_error', err); statusEl.textContent='Falha conexão'; });
+  socket.on('disconnect', (r)=> { statusEl.textContent='Desconectado ('+r+')'; });
+  socket.on('reconnect_attempt', (n)=> { statusEl.textContent='Reconectando ('+n+')'; });
+  socket.on('data', payloadHandler);
+  socket.on('alert', alertHandler);
+}
 
-socket.on('data', payload => {
-  // Filtra apenas se tiver serial e se o dispositivo já estiver associado ao cliente
+function payloadHandler(payload){
   const serial = (payload.numero_serie||'').toUpperCase();
-  if(!serial) return; // precisamos do serial
-  if(!dispositivos[serial]){
-    // opcional: criar linha nova automaticamente
-    dispositivos[serial] = { numero_serie: serial };
-  }
+  if(!serial) return;
+  if(!dispositivos[serial]){ dispositivos[serial] = { numero_serie: serial }; }
   dispositivos[serial].totalLiters = payload.totalLiters;
   dispositivos[serial].flowLmin = payload.flowLmin;
   dispositivos[serial].updated = Date.now();
   render();
-});
+}
+function alertHandler(a){ if(a.type==='leak'){ pushAlertObj(a); }}
 
-socket.on('alert', a => { if(a.type==='leak'){ pushAlertObj(a); }});
+
 
 async function carregarAlertas(){
   try{
@@ -129,7 +148,15 @@ document.getElementById('btnClearAlerts').onclick = async()=>{
 };
 document.getElementById('btnReloadAlerts').onclick = ()=>carregarAlertas();
 
-carregarIniciais();
-carregarAlertas();
+function initAfterSocket(){
+  try{ console.log('[tempo-real] window.io presente?', !!window.io); }catch(e){}
+  carregarIniciais();
+  carregarAlertas();
+  // Só inicia se io realmente carregado
+  if(window.io){ startRealtime(); }
+  else { statusEl.textContent='socket.io não carregado'; }
+}
+
+// Se script CDN adicionou-se acima, initAfterSocket será chamado no onload. Caso io já existisse, já chamamos também.
 </script>
 {% endblock %}

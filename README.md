@@ -338,3 +338,19 @@ Deque em memória limitado por HISTORY_LIMIT + persistência Leitura na base. Aj
 
 ---
 Contribuições são bem-vindas.
+
+## Telas da Aplicação
+
+| Login | Dashboard | Dispositivos |
+|-------|-----------|--------------|
+| ![Login](./img/login.png) | ![Dashboard](./img/dashboard.png) | ![Dispositivos](./img/dispositivos.png) |
+
+| Clientes | Consumos Mensais | Tarifas |
+|----------|------------------|--------|
+| ![Clientes](./img/clientes.png) | ![Consumos Mensais](./img/consumos_mensais.png) | ![Tarifas](./img/tarifas.png) |
+
+| Controle | Tempo Real | Simulação Wokwi |
+|----------|------------|-----------------|
+| ![Controle](./img/control_page.png) | ![Tempo Real](./img/tempo_real.png) | ![Wokwi](./img/wokwi_sim.png) |
+
+> As imagens acima demonstram as principais janelas em execução do sistema.

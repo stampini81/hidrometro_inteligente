@@ -51,13 +51,7 @@ Marque a opção "Add Python to PATH" durante a instalação.
 ## Observações
 - Mensagens de aviso do VS Code sobre `Get-History -Count` podem ser ignoradas.
 - O Wokwi CLI não é obrigatório para funcionamento local.
-# Hidrômetro Inteligente
 
-> Backend unificado Flask: MQTT (paho-mqtt) -> Flask + Socket.IO -> Dashboard/Controle + API REST (JWT) + Persistência SQLAlchemy.
-
-![Dashboard](./img/dashboard.png)
-![Wokwi](./img/wokwi_sim.png)
-![Controle](./img/control_page.png)
 
 ## Sumário
 

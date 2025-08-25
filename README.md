@@ -12,9 +12,6 @@
 - VS Code (opcional, para desenvolvimento)
 
 ## Instalação e execução
-1. Instale o Python e marque "Add Python to PATH".
-    ```
-3. Crie o arquivo `.env` na raiz do projeto (ou copie de `.env.example`):
     ```
     DB_ENGINE=sqlite
     MQTT_URL=mqtt://broker.hivemq.com:1883
@@ -44,16 +41,9 @@
 ## Observações
 1. Abra o Source Control (ícone de ramificação).
 2. Adicione todos os arquivos modificados ao staging.
-# Como executar e verificar o projeto
-
-## 1. Instalação do Python
-Baixe e instale o Python pelo site oficial: https://www.python.org/downloads/
 Marque a opção "Add Python to PATH" durante a instalação.
 
-## 2. Instalação dos requisitos
-Abra o terminal na raiz do projeto e execute:
 ```
-- Acesse o dashboard: http://localhost:5000/dashboard
 - Verifique se o firmware foi compilado sem erros.
 - Confira se o arquivo `.env` está presente e correto.
 - Se necessário, instale dependências adicionais manualmente usando pip.
@@ -71,12 +61,9 @@ Abra o terminal na raiz do projeto e execute:
 
 ## Sumário
 
-- [Visão Geral](#visão-geral)
 - [Arquitetura](#arquitetura)
 - [Alterações Recentes](#alterações-recentes)
 - [Configuração (.env)](#configuração-env)
-- [Migrações](#migrações)
-- [Execução Rápida (Docker)](#execução-rápida-docker)
 - [Execução Local (Sem Docker)](#execução-local-sem-docker)
 - [Login / Token](#login--token)
  - [Login Web](#login-web)

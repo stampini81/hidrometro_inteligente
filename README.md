@@ -441,3 +441,21 @@ Contribuições são bem-vindas.
 | ![Controle](./img/control_page.png) | ![Tempo Real](./img/tempo_real.png) | ![Wokwi](./img/wokwi_sim.png) |
 
 > As imagens acima demonstram as principais janelas em execução do sistema.
+
+## Referências externas: Projetos semelhantes com YF-S201, ESP32, Arduino e MQTT
+
+### Vídeos
+- [Sensor de fluxo de água YF-S201 1/2" 1-30 l/min caudalímetro + ESP32 (YouTube)](https://www.youtube.com/watch?v=025bcQCzuHk)
+- [Video 19 - TASMOTA - Medindo vazão com sensor de fluxo (YouTube)](https://www.youtube.com/watch?v=Kpz_CuaT9g0)
+- [Iot Water Monitoring System | ESP32 WiFi+Bluetooth Module, Water flow sensor, OLED screen & Led (YouTube)](https://www.youtube.com/watch?v=-CIEKBYW1Uk)
+
+### Imagens e tutoriais
+- [Interface Water Flow Sensor Using ESP32 Board (Cytron.io)](https://my.cytron.io/tutorial/interface-water-flow-sensor-using-esp32-board)
+- [Measure Water Flow with YF-S201 Flow Meter | DIY Tutorial (EzloPi)](https://pi.ezlo.com/tutorials-and-kits/measuring-water-flow-using-yf-s201-flow-meter/)
+- [ESP32 Projeto Sensor de Fluxo + Monitoramento WiFi (Usinainfo)](https://www.usinainfo.com.br/blog/esp32-projeto-com-sensor-de-fluxo-de-agua-para-monitoramento-via-wifi/)
+- [YF-S201 Sensor de Vazão de Água (elcereza)](https://elcereza.com/yf-s201/)
+- [How to Use YF-S201 Water Flow Meter: Pinouts, Specs, and Examples (Cirkit Designer)](https://docs.cirkitdesigner.com/component/0d09e1f4-df37-4f0b-acb3-289edfc78e22/yf-s201-water-flow-meter)
+- [Sensor de Fluxo de Água YF-S201 com Arduino Uno (ElectroFun.pt)](https://www.electrofun.pt/blog/sensor-de-fluxo-de-agua-yf-s201-com-arduino-uno/)
+- [IoT Water Flow Meter using ESP8266 & Water Flow Sensor (How To Electronics)](https://how2electronics.com/iot-water-flow-meter-using-esp8266-water-flow-sensor/)
+- [IoT Based Water Flow Meter (IoT Design Pro)](https://iotdesignpro.com/projects/iot-based-water-flow-meter)
+- [Review Request: Esp32-devkitv1 with water flow sensor (YF-S201) (Reddit)](https://www.reddit.com/r/PrintedCircuitBoard/comments/1h24an5/review_request_esp32devkitv1_with_water_flow/)

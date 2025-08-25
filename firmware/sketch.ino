@@ -238,7 +238,7 @@ void onMqttMessage(char* topic, byte* payload, unsigned int length) {
   for (unsigned int i = 0; i < length; i++) msg += (char)payload[i];
   if (String(topic) == MQTT_CMD_TOPIC) {
     // comandos suportados: {"action":"reset"} ou {"action":"setCalibration","value":7.5}
-    StaticJsonDocument<256> doc;
+  JsonDocument doc;
     DeserializationError err = deserializeJson(doc, msg);
     if (!err) {
       String action = doc["action"] | "";
@@ -283,7 +283,7 @@ void reconnectMQTT() {
 }
 
 void publishCurrentDataMQTT() {
-  StaticJsonDocument<256> doc;
+  JsonDocument doc;
   doc["ts"] = getUnixTime();
   doc["totalLiters"] = totalLiters;
   doc["flowLmin"] = currentFlowRate;
@@ -309,7 +309,7 @@ void handleRoot() {
 }
 
 void handleCurrentData() {
-  DynamicJsonDocument doc(1024);
+  JsonDocument doc;
   doc["timestamp"] = getUnixTime();
   doc["totalLiters"] = totalLiters;
   doc["currentFlow_L_min"] = currentFlowRate;
@@ -320,11 +320,11 @@ void handleCurrentData() {
 }
 
 void handleHistoryData() {
-  DynamicJsonDocument doc(4096);
-  JsonArray data = doc.createNestedArray("history");
+  JsonDocument doc;
+  JsonArray data = doc["history"].to<JsonArray>();
   for (int i = 0; i < HISTORY_SIZE; i++) {
     if (history[i].timestamp.isValid()) {
-      JsonObject entry = data.createNestedObject();
+  JsonObject entry = data.add<JsonObject>();
       entry["timestamp"] = history[i].timestamp.unixtime();
       entry["consumption"] = history[i].consumption;
       entry["flowRate_L_min"] = history[i].flowRate;

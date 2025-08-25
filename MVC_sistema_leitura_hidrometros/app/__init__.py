@@ -29,6 +29,14 @@ from app.models.dispositivo_model import Dispositivo, Leitura
 from app.models.alerta_model import Alerta
 from app.models.usuario_model import Usuario
 from app.models.cliente_model import Cliente
+with app.app_context():
+    # Se as tabelas não existem, cria todas (apenas para garantir ambiente inicial)
+    try:
+        if not inspect(db.engine).has_table("Usuario"):
+            db.create_all()
+            print("[INIT] Tabelas criadas via db.create_all() (setup inicial)")
+    except Exception as e:
+        print("[INIT] Erro ao criar tabelas:", e)
 
 # Histórico em memória
 _history = deque(maxlen=app.config.get('HISTORY_LIMIT', 1000))

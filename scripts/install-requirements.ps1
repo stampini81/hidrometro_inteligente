@@ -7,15 +7,41 @@ param(
 
 Write-Host "==> Setup Hidrômetro (Flask Unificado)" -ForegroundColor Cyan
 
+
 function Test-Command($name){ $null -ne (Get-Command $name -ErrorAction SilentlyContinue) }
+
+# Verificar Python
+if (-not (Test-Command $PythonVersion)) {
+  Write-Warning "Python não encontrado no PATH. Baixando instalador..."
+  $pythonInstaller = "$env:TEMP\python-installer.exe"
+  Invoke-WebRequest -Uri "https://www.python.org/ftp/python/3.11.8/python-3.11.8-amd64.exe" -OutFile $pythonInstaller
+  Start-Process $pythonInstaller
+  Write-Error "Instale o Python manualmente e adicione ao PATH do sistema. Depois execute novamente este script."; exit 1
+}
+
+# Verificar pip
+if (-not (Test-Command 'pip')) {
+  Write-Error "pip não encontrado no PATH. Instale o pip e adicione ao PATH do sistema."; exit 1
+}
+
+# Instalar PlatformIO se não estiver disponível
+if (-not (Test-Command 'pio')) {
+  Write-Host "[PIP] Instalando PlatformIO..." -ForegroundColor Cyan
+  pip install platformio
+  if (-not (Test-Command 'pio')) {
+    Write-Warning "PlatformIO não foi instalado corretamente. Verifique o PATH ou instale manualmente: python -m pip install platformio"
+  } else {
+    Write-Host "PlatformIO instalado com sucesso." -ForegroundColor Green
+  }
+}
 
 $repoRoot = Split-Path -Parent $MyInvocation.MyCommand.Path | Split-Path -Parent
 Set-Location $repoRoot
 
 # Caminhos
 $venvPath = Join-Path $repoRoot '.venv'
-$reqFile = 'MVC_sistema_leitura_hidrometros/MVC_sistema_leitura_hidrometros/requirements.txt'
-$flaskApp = 'MVC_sistema_leitura_hidrometros/MVC_sistema_leitura_hidrometros/app'
+$reqFile = 'MVC_sistema_leitura_hidrometros/requirements.txt'
+$flaskApp = 'MVC_sistema_leitura_hidrometros/app'
 
 if (-not (Test-Path $reqFile)) { Write-Error "Arquivo requirements não encontrado em $reqFile"; exit 1 }
 
@@ -33,7 +59,10 @@ if (-not $SkipVenv) {
 Write-Host "[PIP] Instalando dependências" -ForegroundColor Cyan
 pip install --upgrade pip | Out-Null
 pip install -r $reqFile
+
 if ($LASTEXITCODE -ne 0) { Write-Error "Falha ao instalar dependências"; exit 1 }
+
+
 
 # 3) .env
 if (-not (Test-Path '.env')) {

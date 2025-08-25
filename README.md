@@ -43,7 +43,7 @@
 2. Adicione todos os arquivos modificados ao staging.
 Marque a opção "Add Python to PATH" durante a instalação.
 
-```
+
 - Verifique se o firmware foi compilado sem erros.
 - Confira se o arquivo `.env` está presente e correto.
 - Se necessário, instale dependências adicionais manualmente usando pip.

@@ -13,9 +13,6 @@
 
 ## Instalação e execução
 1. Instale o Python e marque "Add Python to PATH".
-2. Instale os requisitos executando no terminal:
-    ```
-    ./scripts/install-requirements.ps1
     ```
 3. Crie o arquivo `.env` na raiz do projeto (ou copie de `.env.example`):
     ```
@@ -45,14 +42,8 @@
 - Instale dependências adicionais manualmente usando pip se necessário.
 
 ## Observações
-- Mensagens de aviso do VS Code sobre `Get-History -Count` podem ser ignoradas.
-- O Wokwi CLI não é obrigatório para funcionamento local.
-
-## Subindo alterações no GitHub pelo VS Code
 1. Abra o Source Control (ícone de ramificação).
 2. Adicione todos os arquivos modificados ao staging.
-3. Faça o commit com uma mensagem descritiva.
-4. Clique em “Push” para enviar ao seu repositório remoto.
 # Como executar e verificar o projeto
 
 ## 1. Instalação do Python
@@ -62,28 +53,6 @@ Marque a opção "Add Python to PATH" durante a instalação.
 ## 2. Instalação dos requisitos
 Abra o terminal na raiz do projeto e execute:
 ```
-./scripts/install-requirements.ps1
-```
-Isso irá instalar todas as dependências necessárias.
-
-## 3. Criação do arquivo .env
-Certifique-se de que o arquivo `.env` existe na raiz do projeto. Se não existir, copie de `.env.example` ou crie manualmente:
-```
-DB_ENGINE=sqlite
-MQTT_URL=mqtt://broker.hivemq.com:1883
-MQTT_TOPIC_DADOS=hidrometro/dados
-MQTT_TOPIC_CMD=hidrometro/cmd
-SECRET_KEY=changeme
-HISTORY_LIMIT=1000
-```
-
-## 4. Execução do ambiente
-Para iniciar todos os serviços e compilar o firmware, execute:
-```
-./scripts/dev-all.ps1
-```
-
-## 5. Verificação do funcionamento
 - Acesse o dashboard: http://localhost:5000/dashboard
 - Verifique se o firmware foi compilado sem erros.
 - Confira se o arquivo `.env` está presente e correto.

@@ -2,6 +2,49 @@
 
 > Backend unificado Flask: MQTT (paho-mqtt) -> Flask + Socket.IO -> Dashboard/Controle + API REST (JWT) + Persistência SQLAlchemy.
 
+## Sensor de Vazão YF-S201 e Estrutura dos Dados
+
+Este projeto utiliza o sensor de vazão YF-S201 para medir o consumo hídrico. O YF-S201 funciona com uma turbina interna e um sensor Hall, gerando pulsos elétricos proporcionais ao fluxo de água.
+
+**Cálculo da Vazão:**
+
+```
+Q (L/min) = (número de pulsos por segundo) / 7.5
+```
+
+O volume total é obtido integrando os pulsos ao longo do tempo:
+
+```
+totalLitros += vazãoInstantanea * (intervalo_ms / 60000.0)
+```
+
+**Exemplo de estrutura JSON enviada via MQTT:**
+
+```json
+{
+    "id_dispositivo": "HD12345",
+    "id_cliente": "C789",
+    "data_hora": "2025-05-16T10:22:00",
+    "consumo_litros": 38.4,
+    "nivel_bateria": 3.7,
+    "pressao_bar": 2.1,
+    "vazamento_detectado": false,
+    "totalLiters": 38.4,
+    "flowLmin": 2.5
+}
+```
+
+**Tópico MQTT recomendado:**
+
+```
+hidrômetro/<id_cliente>/<id_dispositivo>/dados
+```
+
+**Detecção de Vazamentos:**
+- Fluxo contínuo acima do limiar (`LEAK_FLOW_THRESHOLD`) por tempo mínimo (`LEAK_MIN_SECONDS`).
+- Consumo fora do padrão histórico ou em horários incomuns.
+
+Essas regras são implementadas no backend Flask, gerando alertas e persistindo eventos conforme o artigo/TCC.
 ![Dashboard](./img/dashboard.png)
 ![Wokwi](./img/wokwi_sim.png)
 ![Controle](./img/control_page.png)

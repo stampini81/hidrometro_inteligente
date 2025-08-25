@@ -7,9 +7,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 # Instala dependências do sistema (build essentials para eventlet/paho se necessário)
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential && rm -rf /var/lib/apt/lists/*
 
 # Copia requirements
 COPY MVC_sistema_leitura_hidrometros/requirements.txt ./requirements.txt

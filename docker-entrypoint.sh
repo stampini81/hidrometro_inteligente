@@ -6,7 +6,7 @@ cd "${CODE_DIR}" || echo "[ENTRYPOINT] Aviso: não foi possível entrar em ${COD
 export PYTHONPATH="${CODE_DIR}:$PYTHONPATH"
 if [ "${AUTO_MIGRATE}" = "1" ]; then
   echo "[ENTRYPOINT] Inicializando banco (create_all + admin)."
-  python - <<'PY'
+  python3 - <<'PY'
 import os, sys, pathlib
 # Busca dinâmica pelo diretório que contém o pacote app
 for path in [pathlib.Path.cwd()] + list(pathlib.Path('/app').rglob('*')):
@@ -38,4 +38,4 @@ PY
 fi
 
 echo "[ENTRYPOINT] Iniciando aplicação Flask (run.py)"
-exec python /app/MVC_sistema_leitura_hidrometros/run.py
+exec python3 /app/MVC_sistema_leitura_hidrometros/run.py
